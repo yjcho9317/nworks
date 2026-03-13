@@ -1,0 +1,377 @@
+# nworks
+
+[![npm version](https://img.shields.io/npm/v/nworks.svg)](https://www.npmjs.com/package/nworks)
+[![license](https://img.shields.io/npm/l/nworks.svg)](LICENSE)
+[![npm downloads](https://img.shields.io/npm/dm/nworks.svg)](https://www.npmjs.com/package/nworks)
+
+First full MCP server for NAVER WORKS.
+NAVER WORKS API를 스크립트나 AI 에이전트에서 쓰기 쉽게 만든 CLI + MCP 서버입니다.
+
+**Automate messages, calendar, drive, mail, tasks, and boards — from CLI or AI agents.**
+
+## Quickstart
+
+```bash
+npm install -g nworks
+nworks login --user
+nworks calendar list
+```
+
+### AI 에이전트가 실제로 이렇게 씁니다
+
+```
+User: 오늘 일정 알려줘
+
+Claude → nworks_calendar_list
+  → 3건: 스탠드업(10:00), 점심미팅(12:00), 코드리뷰(15:00)
+
+User: 팀 채널에 배포 완료 메시지 보내줘
+
+Claude → nworks_message_send
+  { "channel": "C001", "text": "v1.2.0 배포 완료" }
+  → Message sent
+```
+
+## Install
+
+```bash
+npx nworks          # 바로 실행
+npm install -g nworks  # 글로벌 설치
+```
+
+## 로그인
+
+```bash
+# User OAuth (캘린더, 드라이브, 메일, 할 일, 게시판)
+nworks login --user --scope "calendar,calendar.read,file,mail,task,board,user.read"
+
+# 봇 메시지 전송이 필요한 경우 (Service Account)
+nworks login
+
+# 인증 확인
+nworks whoami
+
+# 로그아웃
+nworks logout
+```
+
+> `nworks login --user`는 CLIENT_ID + CLIENT_SECRET만 있으면 됩니다. 환경변수나 기존 설정에 이미 있는 값은 다시 물어보지 않습니다.
+
+> **Developer Console 설정**: User OAuth를 사용하려면 [Developer Console](https://dev.worksmobile.com)에서 Redirect URL에 `http://localhost:9876/callback`을 등록해야 합니다.
+
+---
+
+## MCP 서버 (AI 에이전트 연동)
+
+Claude Desktop, Cursor 등에서 MCP server로 NAVER WORKS 22개 도구를 사용할 수 있습니다.
+메시지 전송, 일정 관리, 파일 업로드, 메일, 할 일, 게시판까지 — AI 에이전트가 NAVER WORKS 워크플로우를 자동화합니다.
+
+### 설정
+
+먼저 로그인합니다:
+
+```bash
+nworks login --user --scope "calendar,calendar.read,file,mail,task,board,user.read"
+```
+
+그리고 MCP 설정에 추가합니다 (`~/.config/claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "nworks": {
+      "command": "nworks",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+끝입니다. 인증 한 번으로 22개 도구 모두 사용 가능 — 별도 env 설정이 필요 없습니다.
+
+### MCP 도구 목록 (22개)
+
+| 도구 | 설명 | 필요 인증 |
+|------|------|----------|
+| `nworks_message_send` | 사용자/채널에 메시지 전송 | Service Account |
+| `nworks_message_members` | 채널 구성원 조회 | Service Account |
+| `nworks_directory_members` | 조직 구성원 조회 | Service Account |
+| `nworks_calendar_list` | 캘린더 일정 조회 | User OAuth |
+| `nworks_calendar_create` | 캘린더 일정 생성 | User OAuth |
+| `nworks_calendar_update` | 캘린더 일정 수정 | User OAuth |
+| `nworks_calendar_delete` | 캘린더 일정 삭제 | User OAuth |
+| `nworks_drive_list` | 드라이브 파일/폴더 목록 | User OAuth |
+| `nworks_drive_upload` | 드라이브 파일 업로드 | User OAuth |
+| `nworks_drive_download` | 드라이브 파일 다운로드 | User OAuth |
+| `nworks_mail_send` | 메일 전송 | User OAuth |
+| `nworks_mail_list` | 메일 목록 조회 | User OAuth |
+| `nworks_mail_read` | 메일 상세 조회 | User OAuth |
+| `nworks_task_list` | 할 일 목록 조회 | User OAuth |
+| `nworks_task_create` | 할 일 생성 | User OAuth |
+| `nworks_task_update` | 할 일 수정/완료 | User OAuth |
+| `nworks_task_delete` | 할 일 삭제 | User OAuth |
+| `nworks_board_list` | 게시판 목록 조회 | User OAuth |
+| `nworks_board_posts` | 게시판 글 목록 조회 | User OAuth |
+| `nworks_board_read` | 게시판 글 상세 조회 | User OAuth |
+| `nworks_board_create` | 게시판 글 작성 | User OAuth |
+| `nworks_whoami` | 인증 상태 확인 | — |
+
+### AI 에이전트 사용 예시
+
+```
+User: 내일 오후 2시에 회의 잡고, 팀 채널에 알려줘
+
+Claude → nworks_calendar_create
+  { "summary": "회의", "start": "2026-03-15T14:00:00", "end": "2026-03-15T15:00:00" }
+  → Event created
+
+Claude → nworks_message_send
+  { "channel": "C001", "text": "내일 14:00 회의가 잡혔습니다" }
+  → Message sent
+```
+
+---
+
+## CLI 사용법
+
+> 모든 명령어에 `--json` 지원 (파이프, 스크립트, 에이전트 파싱 용이). `message send`, `mail send`, `drive upload`는 `--dry-run`으로 실제 전송 없이 테스트 가능.
+
+### 메시지 (Bot API)
+
+```bash
+# 사용자에게 텍스트 메시지
+nworks message send --to <userId> --text "메시지"
+
+# 채널에 텍스트 메시지
+nworks message send --channel <channelId> --text "메시지"
+
+# 버튼 메시지
+nworks message send --to <userId> --type button --text "PR 리뷰 요청" \
+  --actions '[{"type":"message","label":"승인","postback":"approve"}]'
+
+# 리스트 메시지
+nworks message send --to <userId> --type list --text "오늘의 할 일" \
+  --elements '[{"title":"코드 리뷰","subtitle":"#382 PR"}]'
+
+# 채널 구성원 조회
+nworks message members --channel <channelId>
+```
+
+### 조직 (Directory API)
+
+```bash
+nworks directory members   # 조직 구성원 목록
+```
+
+### 캘린더 (User OAuth)
+
+```bash
+# 오늘 일정 조회
+nworks calendar list
+
+# 기간 지정
+nworks calendar list --from "2026-03-14T00:00:00+09:00" --until "2026-03-14T23:59:59+09:00"
+
+# 일정 생성
+nworks calendar create --title "회의" --start "2026-03-14T14:00+09:00" --end "2026-03-14T15:00+09:00"
+
+# 장소/설명 포함
+nworks calendar create --title "점심 미팅" --start "2026-03-14T12:00+09:00" --end "2026-03-14T13:00+09:00" \
+  --location "강남 식당" --description "분기 리뷰"
+
+# 참석자 지정 + 알림
+nworks calendar create --title "팀 회의" --start "2026-03-14T10:00+09:00" --end "2026-03-14T11:00+09:00" \
+  --attendees "user1@example.com,user2@example.com" --notify
+
+# 일정 수정
+nworks calendar update --id <eventId> --title "변경된 제목"
+
+# 일정 삭제
+nworks calendar delete --id <eventId>
+```
+
+### 드라이브 (User OAuth)
+
+```bash
+# 파일/폴더 목록
+nworks drive list
+
+# 파일 업로드
+nworks drive upload --file ./report.pdf
+
+# 특정 폴더에 업로드
+nworks drive upload --file ./report.pdf --folder <folderId>
+
+# 파일 다운로드
+nworks drive download --file-id <fileId>
+
+# 다운로드 경로/파일명 지정
+nworks drive download --file-id <fileId> --out ./downloads --name report.pdf
+```
+
+### 메일 (User OAuth)
+
+```bash
+# 메일 전송
+nworks mail send --to "user@example.com" --subject "제목" --body "내용"
+
+# CC/BCC 포함
+nworks mail send --to "user@example.com" --cc "cc@example.com" --subject "제목" --body "내용"
+
+# 받은편지함 목록
+nworks mail list
+
+# 읽지 않은 메일만
+nworks mail list --unread
+
+# 메일 상세 조회
+nworks mail read --id <mailId>
+```
+
+### 할 일 (User OAuth)
+
+```bash
+# 할 일 목록
+nworks task list
+
+# 미완료만 조회
+nworks task list --status TODO
+
+# 할 일 생성
+nworks task create --title "코드 리뷰" --body "PR #382 리뷰"
+
+# 마감일 지정
+nworks task create --title "배포" --due 2026-03-20
+
+# 할 일 완료 처리
+nworks task update --id <taskId> --status done
+
+# 할 일 삭제
+nworks task delete --id <taskId>
+```
+
+### 게시판 (User OAuth)
+
+```bash
+# 게시판 목록
+nworks board list
+
+# 게시판 글 목록
+nworks board posts --board <boardId>
+
+# 글 상세 조회
+nworks board read --board <boardId> --post <postId>
+
+# 글 작성
+nworks board create --board <boardId> --title "공지사항" --body "내용"
+
+# 알림 발송 + 댓글 비활성화
+nworks board create --board <boardId> --title "공지" --body "내용" --notify --no-comment
+```
+
+---
+
+## OAuth Scope 설정
+
+[NAVER WORKS Developer Console](https://dev.worksmobile.com)에서 앱의 OAuth Scope를 추가해야 합니다.
+
+| Scope | 용도 | 인증 방식 | 필요한 명령어 |
+|-------|------|----------|--------------|
+| `bot` | Bot 메시지 전송 | Service Account | `message send` |
+| `bot.read` | Bot 채널/구성원 조회 | Service Account | `message members` |
+| `user.read` | 조직 구성원 조회 | Service Account | `directory members` |
+| `calendar` | 캘린더 쓰기 | User OAuth | `calendar create/update/delete` |
+| `calendar.read` | 캘린더 읽기 | User OAuth | `calendar list` |
+| `file` | 드라이브 읽기/쓰기 | User OAuth | `drive list/upload/download` |
+| `file.read` | 드라이브 읽기 전용 | User OAuth | `drive list/download` |
+| `mail` | 메일 읽기/쓰기 | User OAuth | `mail send/list/read` |
+| `mail.read` | 메일 읽기 전용 | User OAuth | `mail list/read` |
+| `task` | 할 일 읽기/쓰기 | User OAuth | `task list/create/update/delete` |
+| `task.read` | 할 일 읽기 전용 | User OAuth | `task list` |
+| `board` | 게시판 읽기/쓰기 | User OAuth | `board list/posts/read/create` |
+| `board.read` | 게시판 읽기 전용 | User OAuth | `board list/posts/read` |
+
+> **Tip**: scope를 변경한 후에는 토큰을 재발급해야 합니다.
+> ```bash
+> nworks logout && nworks login --user --scope "..."
+> ```
+
+## 사용 시나리오
+
+### CI/CD 배포 알림
+
+```bash
+# GitHub Actions에서 배포 완료 후 팀 채널에 알림
+nworks message send --channel $CHANNEL_ID --text "v${VERSION} 배포 완료"
+```
+
+### 팀 자동화 스크립트
+
+```bash
+# 매일 아침 팀원에게 리마인더 전송
+for userId in $(nworks directory members --json | jq -r '.users[].userId'); do
+  nworks message send --to "$userId" --text "오늘의 스탠드업 10시입니다"
+done
+```
+
+---
+
+## Advanced Configuration
+
+### 환경 변수
+
+환경변수로 인증 정보를 설정하면 `nworks login` 없이 바로 사용할 수 있습니다.
+
+```bash
+# 공통 (필수)
+NWORKS_CLIENT_ID=          # 필수
+NWORKS_CLIENT_SECRET=      # 필수
+
+# 봇 메시지 전송 시에만 필요 (User OAuth만 쓰면 불필요)
+NWORKS_SERVICE_ACCOUNT=    # 봇 전용
+NWORKS_PRIVATE_KEY_PATH=   # 봇 전용
+NWORKS_BOT_ID=             # 봇 전용
+
+# 선택
+NWORKS_DOMAIN_ID=          # optional
+NWORKS_SCOPE=              # optional (기본: bot bot.read user.read)
+NWORKS_VERBOSE=1           # optional, 디버그 로깅
+```
+
+### MCP 서버에 환경 변수 직접 설정
+
+`nworks login` 대신 환경 변수로 직접 설정할 수도 있습니다:
+
+```json
+{
+  "mcpServers": {
+    "nworks": {
+      "command": "npx",
+      "args": ["-y", "nworks", "mcp"],
+      "env": {
+        "NWORKS_CLIENT_ID": "<Client ID>",
+        "NWORKS_CLIENT_SECRET": "<Client Secret>"
+      }
+    }
+  }
+}
+```
+
+봇 메시지도 사용하려면 `NWORKS_SERVICE_ACCOUNT`, `NWORKS_PRIVATE_KEY_PATH`, `NWORKS_BOT_ID`도 추가합니다.
+
+---
+
+## Roadmap
+
+- ~~**v0.1** — 메시지, 조직 구성원, MCP 서버~~
+- ~~**v0.2** — 캘린더 일정 조회 + User OAuth~~
+- ~~**v0.3** — 드라이브 파일 조회/업로드/다운로드~~
+- ~~**v0.4** — 메일 (`mail send/list/read`)~~
+- ~~**v0.5** — 할 일 (`task list/create/update/delete`)~~
+- ~~**v0.6** — 캘린더 쓰기 (`calendar create/update/delete`)~~
+- ~~**v0.7** — 게시판 (`board list/posts/read/create`)~~
+- **v1.0** — User OAuth 단독 로그인, MCP/CLI 인증 UX 개선, README 재구성
+
+## License
+
+Apache-2.0

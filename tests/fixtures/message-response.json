@@ -1,0 +1,43 @@
+{
+  "send_text_success": {
+    "messageId": "msg-abc123"
+  },
+  "channels_list": {
+    "channels": [
+      {
+        "channelId": "ch-abc123",
+        "title": "개발팀",
+        "channelType": { "type": "MULTI_USERS" }
+      },
+      {
+        "channelId": "ch-def456",
+        "title": "마케팅팀",
+        "channelType": { "type": "MULTI_USERS" }
+      }
+    ]
+  },
+  "channel_detail": {
+    "domainId": 10000001,
+    "channelId": "ch-abc123",
+    "title": "개발팀",
+    "channelType": { "type": "MULTI_USERS" }
+  },
+  "members_list": {
+    "members": [
+      "user-001",
+      "user-002",
+      "user-003"
+    ],
+    "responseMetaData": {
+      "nextCursor": "eyJjcmVhdGVkVGltZSI6MTYzOTY2ODU2NH0="
+    }
+  },
+  "error_unauthorized": {
+    "code": "UNAUTHORIZED",
+    "description": "Access token is expired or invalid."
+  },
+  "error_not_found": {
+    "code": "NOT_FOUND",
+    "description": "User not found: user-999"
+  }
+}

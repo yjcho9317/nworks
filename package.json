@@ -1,0 +1,57 @@
+{
+  "name": "nworks",
+  "version": "1.0.0",
+  "description": "CLI and MCP server for NAVER WORKS — control messages, calendar, drive, mail, tasks, and boards from terminal or AI agents (Claude, Cursor)",
+  "type": "module",
+  "bin": {
+    "nworks": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "dev:mcp": "tsx src/mcp.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "naver-works",
+    "cli",
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "bot",
+    "messaging",
+    "automation",
+    "claude",
+    "cursor"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yjcho9317/nworks.git"
+  },
+  "homepage": "https://github.com/yjcho9317/nworks#readme",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "commander": "^12.1.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
