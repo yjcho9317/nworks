@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import * as directoryApi from "../api/directory.js";
-import { output, errorOutput } from "../output/format.js";
+import { output } from "../output/format.js";
+import { cliError } from "../output/cli-error.js";
 
 const membersCommand = new Command("members")
   .description("List organization members (requires directory.read scope)")
@@ -26,9 +27,7 @@ const membersCommand = new Command("members")
       };
       output(formatted, opts);
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts);
     }
   });
 

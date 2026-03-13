@@ -67,12 +67,12 @@ function printTable(rows: unknown[]): void {
 }
 
 export function errorOutput(
-  error: { code?: string; message: string },
+  error: { code?: string; message: string; hint?: string },
   opts: FormatOptions = {}
 ): void {
   const payload = {
     success: false,
-    error: { code: error.code ?? "ERROR", message: error.message },
+    error: { code: error.code ?? "ERROR", message: error.message, hint: error.hint },
   };
 
   if (opts.json || !process.stderr.isTTY) {
@@ -81,6 +81,9 @@ export function errorOutput(
     console.error(`  Error: ${error.message}`);
     if (error.code) {
       console.error(`  Code: ${error.code}`);
+    }
+    if (error.hint) {
+      console.error(`  → ${error.hint}`);
     }
   }
 }

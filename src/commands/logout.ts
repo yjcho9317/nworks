@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { clearCredentials } from "../auth/config.js";
-import { output, errorOutput } from "../output/format.js";
+import { output } from "../output/format.js";
+import { cliError } from "../output/cli-error.js";
 
 export const logoutCommand = new Command("logout")
   .description("Remove stored credentials and tokens")
@@ -12,8 +13,6 @@ export const logoutCommand = new Command("logout")
       await clearCredentials(profile);
       output({ success: true, message: `Logged out (profile: ${profile})` }, opts);
     } catch (err) {
-      const error = err as Error;
-      errorOutput({ message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts);
     }
   });

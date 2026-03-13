@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import * as taskApi from "../api/task.js";
-import { output, errorOutput } from "../output/format.js";
+import { output } from "../output/format.js";
+import { cliError } from "../output/cli-error.js";
 
 const listCommand = new Command("list")
   .description("List tasks (requires User OAuth with task or task.read scope)")
@@ -40,9 +41,7 @@ const listCommand = new Command("list")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "task");
     }
   });
 
@@ -83,9 +82,7 @@ const createCommand = new Command("create")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "task");
     }
   });
 
@@ -142,9 +139,7 @@ const updateCommand = new Command("update")
         throw new Error("Specify at least one of: --title, --body, --due, --status");
       }
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "task");
     }
   });
 
@@ -161,9 +156,7 @@ const deleteCommand = new Command("delete")
       );
       output({ success: true, taskId: opts.id, message: "Task deleted" }, opts);
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "task");
     }
   });
 

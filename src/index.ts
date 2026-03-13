@@ -11,6 +11,7 @@ import { mailCommand } from "./commands/mail.js";
 import { taskCommand } from "./commands/task.js";
 import { boardCommand } from "./commands/board.js";
 import { mcpCommand } from "./commands/mcp-cmd.js";
+import { doctorCommand } from "./commands/doctor.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -35,5 +36,6 @@ program.addCommand(mailCommand);
 program.addCommand(taskCommand);
 program.addCommand(boardCommand);
 program.addCommand(mcpCommand);
+program.addCommand(doctorCommand);
 
 program.parse();

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import * as boardApi from "../api/board.js";
-import { output, errorOutput } from "../output/format.js";
+import { output } from "../output/format.js";
+import { cliError } from "../output/cli-error.js";
 
 const listCommand = new Command("list")
   .description("List boards (requires User OAuth with board or board.read scope)")
@@ -27,9 +28,7 @@ const listCommand = new Command("list")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "board");
     }
   });
 
@@ -63,9 +62,7 @@ const postsCommand = new Command("posts")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "board");
     }
   });
 
@@ -98,9 +95,7 @@ const readCommand = new Command("read")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "board");
     }
   });
 
@@ -134,9 +129,7 @@ const createCommand = new Command("create")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "board");
     }
   });
 

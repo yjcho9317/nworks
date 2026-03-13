@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import * as calendarApi from "../api/calendar.js";
-import { output, errorOutput } from "../output/format.js";
+import { output } from "../output/format.js";
+import { cliError } from "../output/cli-error.js";
 
 function todayRange(): { from: string; until: string } {
   const now = new Date();
@@ -50,9 +51,7 @@ const listCommand = new Command("list")
 
       output({ events, count: events.length }, opts);
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "calendar");
     }
   });
 
@@ -102,9 +101,7 @@ const createCommand = new Command("create")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "calendar");
     }
   });
 
@@ -153,9 +150,7 @@ const updateCommand = new Command("update")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "calendar");
     }
   });
 
@@ -176,9 +171,7 @@ const deleteCommand = new Command("delete")
       );
       output({ success: true, eventId: opts.id, message: "Event deleted" }, opts);
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "calendar");
     }
   });
 

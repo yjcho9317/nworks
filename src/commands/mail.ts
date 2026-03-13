@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import * as mailApi from "../api/mail.js";
-import { output, errorOutput } from "../output/format.js";
+import { output } from "../output/format.js";
+import { cliError } from "../output/cli-error.js";
 
 const sendCommand = new Command("send")
   .description("Send a mail (requires User OAuth with mail scope)")
@@ -35,9 +36,7 @@ const sendCommand = new Command("send")
       await mailApi.sendMail(sendOpts);
       output({ success: true, message: "Mail sent (async)" }, opts);
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "mail");
     }
   });
 
@@ -82,9 +81,7 @@ const listCommand = new Command("list")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "mail");
     }
   });
 
@@ -122,9 +119,7 @@ const readCommand = new Command("read")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "mail");
     }
   });
 

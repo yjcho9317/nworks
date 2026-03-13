@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { loadCredentials, loadToken } from "../auth/config.js";
-import { output, errorOutput } from "../output/format.js";
+import { output } from "../output/format.js";
+import { cliError } from "../output/cli-error.js";
 
 export const whoamiCommand = new Command("whoami")
   .description("Show current authentication status")
@@ -36,8 +37,6 @@ export const whoamiCommand = new Command("whoami")
         opts
       );
     } catch (err) {
-      const error = err as Error;
-      errorOutput({ message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts);
     }
   });

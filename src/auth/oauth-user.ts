@@ -173,4 +173,17 @@ export async function refreshUserToken(
   };
 }
 
+/**
+ * Start OAuth callback server in background and return token when callback arrives.
+ * Used by MCP tool to fire-and-forget while returning the auth URL immediately.
+ */
+export function startOAuthCallbackServer(
+  clientId: string,
+  clientSecret: string,
+): Promise<UserTokenResult> {
+  return waitForAuthCode().then((code) =>
+    exchangeCodeForToken(code, clientId, clientSecret)
+  );
+}
+
 export { REDIRECT_URI };

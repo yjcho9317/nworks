@@ -2,7 +2,8 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Command } from "commander";
 import * as driveApi from "../api/drive.js";
-import { output, errorOutput } from "../output/format.js";
+import { output } from "../output/format.js";
+import { cliError } from "../output/cli-error.js";
 
 const listCommand = new Command("list")
   .description("List files in Drive (requires User OAuth with file or file.read scope)")
@@ -39,9 +40,7 @@ const listCommand = new Command("list")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "drive");
     }
   });
 
@@ -92,9 +91,7 @@ const uploadCommand = new Command("upload")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "drive");
     }
   });
 
@@ -131,9 +128,7 @@ const downloadCommand = new Command("download")
         opts
       );
     } catch (err) {
-      const error = err as Error & { code?: string };
-      errorOutput({ code: error.code, message: error.message }, opts);
-      process.exitCode = 1;
+      cliError(err, opts, "drive");
     }
   });
 
