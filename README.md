@@ -4,6 +4,10 @@
 [![license](https://img.shields.io/npm/l/nworks.svg)](LICENSE)
 [![npm downloads](https://img.shields.io/npm/dm/nworks.svg)](https://www.npmjs.com/package/nworks)
 
+<p align="center">
+  <img src="assets/demo.gif" width="600" alt="nworks demo">
+</p>
+
 First full MCP server for NAVER WORKS.
 NAVER WORKS API를 스크립트나 AI 에이전트에서 쓰기 쉽게 만든 CLI + MCP 서버입니다.
 
