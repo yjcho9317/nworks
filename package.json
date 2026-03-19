@@ -1,7 +1,7 @@
 {
   "name": "nworks",
-  "version": "1.1.1",
-  "description": "CLI and MCP server for NAVER WORKS — control messages, calendar, drive, mail, tasks, and boards from terminal or AI agents (Claude, Cursor)",
+  "version": "1.1.2",
+  "description": "CLI and MCP server for NAVER WORKS / LINE WORKS — control messages, calendar, drive, mail, tasks, and boards from terminal or AI agents (Claude, Cursor)",
   "type": "module",
   "bin": {
     "nworks": "./dist/index.js"
