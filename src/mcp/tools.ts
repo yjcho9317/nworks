@@ -16,43 +16,59 @@ export function registerTools(server: McpServer): void {
   // Tool 0: 초기 설정
   server.tool(
     "nworks_setup",
-    "NAVER WORKS API 인증 정보를 설정합니다. clientId는 필수, clientSecret은 환경변수(NWORKS_CLIENT_SECRET)로도 설정 가능합니다. 민감 정보는 환경변수로 설정하는 것을 권장합니다 (NWORKS_CLIENT_ID, NWORKS_CLIENT_SECRET 등). 메시지/구성원조회는 Service Account 인증(serviceAccount, privateKeyPath, botId 추가 필요). 캘린더/메일/할일/드라이브/게시판은 User OAuth 인증(설정 후 nworks_login_user로 브라우저 로그인 필요). OAuth Redirect URI: http://localhost:9876/callback",
+    "NAVER WORKS API 인증 정보를 설정합니다. 민감 정보(Client Secret, Private Key 경로)는 이 tool의 파라미터로 받지 않습니다 — 사용자가 MCP 설정 파일(예: claude_desktop_config.json)의 env 필드에 NWORKS_CLIENT_SECRET(필수)과 NWORKS_PRIVATE_KEY_PATH(Service Account 사용 시)를 미리 설정해야 합니다. Developer Console: https://dev.worksmobile.com. 환경변수가 설정되지 않은 경우, 사용자에게 설정 방법을 안내하세요. 메시지/구성원조회는 Service Account 인증(serviceAccount, botId + 환경변수 NWORKS_PRIVATE_KEY_PATH 필요). 캘린더/메일/할일/드라이브/게시판은 User OAuth 인증(설정 후 nworks_login_user로 브라우저 로그인 필요). OAuth Redirect URI: http://localhost:9876/callback",
     {
       clientId: z.string().describe("Client ID (Developer Console에서 발급)"),
-      clientSecret: z.string().optional().describe("Client Secret (Developer Console에서 발급). 환경변수 NWORKS_CLIENT_SECRET이 설정되어 있으면 생략 가능"),
       serviceAccount: z.string().optional().describe("Service Account ID (예: xxxxx.serviceaccount@domain)"),
-      privateKeyPath: z.string().optional().describe("Private Key 파일의 로컬 절대 경로 (서비스 계정 인증 시 필요). 사용자에게 파일이 저장된 경로를 직접 물어보세요 (예: C:\\Users\\me\\Downloads\\private.key). 파일 업로드가 아닌 경로 문자열입니다."),
       botId: z.string().optional().describe("Bot ID (메시지 전송 시 필요)"),
       domainId: z.string().optional().describe("Domain ID"),
     },
-    async ({ clientId, clientSecret, serviceAccount, privateKeyPath, botId, domainId }) => {
+    async ({ clientId, serviceAccount, botId, domainId }) => {
       try {
-        // clientSecret: 파라미터 → 환경변수 순으로 확인
-        const resolvedSecret = clientSecret || process.env["NWORKS_CLIENT_SECRET"];
+        const resolvedSecret = process.env["NWORKS_CLIENT_SECRET"];
         if (!resolvedSecret) {
           return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: true, message: "clientSecret이 필요합니다. 파라미터로 전달하거나 환경변수 NWORKS_CLIENT_SECRET을 설정하세요." }) }],
+            content: [{ type: "text" as const, text: JSON.stringify({
+                  error: true,
+                  message: "환경변수 NWORKS_CLIENT_SECRET이 설정되어 있지 않습니다.",
+                  solution: "사용자에게 다음 안내를 전달하세요: MCP 설정 파일(예: claude_desktop_config.json)의 nworks 서버 설정에 env 필드를 추가해야 합니다.",
+                  example: {
+                    mcpServers: {
+                      nworks: {
+                        command: "npx",
+                        args: ["-y", "nworks", "mcp"],
+                        env: {
+                          NWORKS_CLIENT_SECRET: "<Developer Console에서 발급받은 Client Secret>",
+                        },
+                      },
+                    },
+                  },
+                  developerConsole: "https://dev.worksmobile.com",
+                }) }],
             isError: true,
           };
         }
+
+        const resolvedPrivateKeyPath = process.env["NWORKS_PRIVATE_KEY_PATH"];
 
         await saveCredentials({
           clientId,
           clientSecret: resolvedSecret,
           serviceAccount,
-          privateKeyPath,
+          privateKeyPath: resolvedPrivateKeyPath,
           botId,
           domainId,
         });
 
         const nextSteps: string[] = [];
-        if (serviceAccount && privateKeyPath && botId) {
+        if (serviceAccount && resolvedPrivateKeyPath && botId) {
           nextSteps.push("Service Account 인증 준비 완료 — 봇 메시지 등 바로 사용 가능");
+        } else if (serviceAccount && botId && !resolvedPrivateKeyPath) {
+          nextSteps.push("NWORKS_PRIVATE_KEY_PATH 환경변수가 설정되지 않았습니다. Service Account 인증에는 Private Key 경로가 필요합니다. 사용자에게 MCP 설정 파일(예: claude_desktop_config.json)의 env 필드에 NWORKS_PRIVATE_KEY_PATH를 추가하도록 안내하세요. Private Key는 Developer Console(https://dev.worksmobile.com)에서 다운로드할 수 있습니다.");
         }
         nextSteps.push("User OAuth가 필요한 API는 nworks_login_user tool로 브라우저 로그인을 진행하세요");
 
         const mask = (s: string) => s.length <= 4 ? "****" : `****${s.slice(-Math.min(4, Math.floor(s.length / 3)))}`;
-        const secretSource = clientSecret ? "파라미터" : "환경변수";
 
         return {
           content: [
@@ -63,9 +79,9 @@ export function registerTools(server: McpServer): void {
                 message: "인증 정보가 저장되었습니다.",
                 nextSteps,
                 clientId,
-                clientSecret: `${mask(resolvedSecret)} (${secretSource})`,
+                clientSecret: `${mask(resolvedSecret)} (환경변수)`,
                 serviceAccount: serviceAccount ?? null,
-                privateKeyPath: privateKeyPath ? mask(privateKeyPath) : null,
+                privateKeyPath: resolvedPrivateKeyPath ? `${mask(resolvedPrivateKeyPath)} (환경변수)` : null,
                 botId: botId ?? null,
               }),
             },
@@ -83,7 +99,7 @@ export function registerTools(server: McpServer): void {
   // Tool 1: 메시지 전송
   server.tool(
     "nworks_message_send",
-    "NAVER WORKS 메시지를 전송합니다 (봇이 사용자 또는 채널에 발송). Service Account 인증 사용 (nworks_setup에서 serviceAccount, privateKeyPath, botId 설정 필요. User OAuth 불필요)",
+    "NAVER WORKS 메시지를 전송합니다 (봇이 사용자 또는 채널에 발송). Service Account 인증 사용 (nworks_setup에서 serviceAccount, botId 설정 + 환경변수 NWORKS_PRIVATE_KEY_PATH 필요. User OAuth 불필요)",
     {
       to: z.string().optional().describe("수신자 userId (channel과 택 1). nworks_directory_members로 userId 조회 가능"),
       channel: z.string().optional().describe("채널 channelId (to와 택 1). nworks_message_members로 채널 구성원 확인 가능"),

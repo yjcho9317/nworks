@@ -102,14 +102,14 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 
 로그인 한 번이면 26개 도구 모두 사용 가능. 별도 env 설정 불필요.
 
-> **MCP에서 AI 에이전트가 직접 설정하기**: CLI 로그인 없이도 AI 에이전트가 `nworks_setup` → `nworks_login_user` 순서로 호출하면 브라우저 로그인만으로 전체 기능을 사용할 수 있습니다.
+> **MCP에서 AI 에이전트가 직접 설정하기**: CLI 로그인 없이도 AI 에이전트가 `nworks_setup` → `nworks_login_user` 순서로 호출하면 브라우저 로그인만으로 전체 기능을 사용할 수 있습니다. Client Secret과 Private Key 경로는 MCP 설정의 `env` 필드 또는 시스템 환경변수로 미리 설정해야 합니다.
 
 ### MCP 도구 목록 (26개)
 
 | 도구 | 설명 | 필요 인증 |
 |------|------|----------|
 | **설정/인증** | | |
-| `nworks_setup` | API 인증 정보 설정 (Client ID/Secret 등) | — |
+| `nworks_setup` | API 인증 정보 설정 (Client ID 등). Client Secret은 환경변수로 설정 | — |
 | `nworks_login_user` | User OAuth 브라우저 로그인 (전체 scope 자동 포함) | — |
 | `nworks_logout` | 인증 정보 및 토큰 삭제 | — |
 | `nworks_whoami` | 인증 상태 확인 | — |
@@ -369,7 +369,7 @@ NWORKS_VERBOSE=1           # 디버그 로깅
 
 ### MCP 서버에 환경 변수 직접 설정
 
-`nworks login` 대신 환경 변수로 직접 설정할 수도 있습니다:
+민감 정보(Client Secret, Private Key 경로)는 MCP 설정의 `env` 필드로 설정합니다. Client ID 등 민감하지 않은 값은 AI 에이전트가 `nworks_setup` tool로 직접 설정할 수 있습니다.
 
 ```json
 {
@@ -378,15 +378,13 @@ NWORKS_VERBOSE=1           # 디버그 로깅
       "command": "npx",
       "args": ["-y", "nworks", "mcp"],
       "env": {
-        "NWORKS_CLIENT_ID": "<Client ID>",
-        "NWORKS_CLIENT_SECRET": "<Client Secret>"
+        "NWORKS_CLIENT_SECRET": "<Client Secret>",
+        "NWORKS_PRIVATE_KEY_PATH": "<Private Key 파일 절대 경로 (Service Account 사용 시)>"
       }
     }
   }
 }
 ```
-
-봇 메시지도 사용하려면 `NWORKS_SERVICE_ACCOUNT`, `NWORKS_PRIVATE_KEY_PATH`, `NWORKS_BOT_ID`도 추가합니다.
 
 ---
 

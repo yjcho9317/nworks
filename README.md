@@ -102,14 +102,14 @@ Then add to your MCP config (`~/.config/claude/claude_desktop_config.json`):
 
 One login enables all 26 tools. No extra env setup needed.
 
-> Without CLI login, an AI agent can call `nworks_setup` → `nworks_login_user` to authenticate via browser directly.
+> Without CLI login, an AI agent can call `nworks_setup` → `nworks_login_user` to authenticate via browser directly. Client Secret and Private Key path must be pre-configured via MCP config `env` field or system environment variables.
 
 ### MCP Tools (26)
 
 | Tool | Description | Auth |
 |------|-------------|------|
 | **Setup / Auth** | | |
-| `nworks_setup` | Configure API credentials (Client ID/Secret) | — |
+| `nworks_setup` | Configure API credentials (Client ID, etc.). Client Secret is set via env | — |
 | `nworks_login_user` | User OAuth browser login (all scopes included) | — |
 | `nworks_logout` | Delete credentials and tokens | — |
 | `nworks_whoami` | Check auth status | — |
@@ -369,7 +369,7 @@ NWORKS_VERBOSE=1           # debug logging
 
 ### MCP Server with Environment Variables
 
-Instead of `nworks login`, you can pass credentials directly:
+Sensitive values (Client Secret, Private Key path) must be set via MCP config `env` field. Non-sensitive values like Client ID can be configured by the AI agent through the `nworks_setup` tool.
 
 ```json
 {
@@ -378,15 +378,13 @@ Instead of `nworks login`, you can pass credentials directly:
       "command": "npx",
       "args": ["-y", "nworks", "mcp"],
       "env": {
-        "NWORKS_CLIENT_ID": "<Client ID>",
-        "NWORKS_CLIENT_SECRET": "<Client Secret>"
+        "NWORKS_CLIENT_SECRET": "<Client Secret>",
+        "NWORKS_PRIVATE_KEY_PATH": "<Private Key file absolute path (for Service Account)>"
       }
     }
   }
 }
 ```
-
-Add `NWORKS_SERVICE_ACCOUNT`, `NWORKS_PRIVATE_KEY_PATH`, and `NWORKS_BOT_ID` for bot messaging.
 
 ---
 

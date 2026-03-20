@@ -102,14 +102,14 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 
 一度のログインで26ツールすべて利用可能。追加のenv設定は不要です。
 
-> CLIログインなしでも、AIエージェントが `nworks_setup` → `nworks_login_user` を呼び出せばブラウザから直接認証できます。
+> CLIログインなしでも、AIエージェントが `nworks_setup` → `nworks_login_user` を呼び出せばブラウザから直接認証できます。Client SecretとPrivate Keyのパスは、MCP設定の `env` フィールドまたはシステム環境変数で事前に設定してください。
 
 ### MCPツール一覧（26個）
 
 | ツール | 説明 | 必要な認証 |
 |--------|------|-----------|
 | **設定/認証** | | |
-| `nworks_setup` | API認証情報の設定（Client ID/Secretなど） | — |
+| `nworks_setup` | API認証情報の設定（Client IDなど）。Client Secretは環境変数で設定 | — |
 | `nworks_login_user` | User OAuthブラウザログイン（全scope自動含む） | — |
 | `nworks_logout` | 認証情報とトークンの削除 | — |
 | `nworks_whoami` | 認証状態の確認 | — |
@@ -369,7 +369,7 @@ NWORKS_VERBOSE=1           # デバッグログ
 
 ### MCPサーバーに環境変数を直接設定
 
-`nworks login` の代わりに環境変数で直接設定することもできます：
+機密情報（Client Secret、Private Keyパス）はMCP設定の `env` フィールドで設定します。Client IDなどの非機密情報は、AIエージェントが `nworks_setup` ツールで直接設定できます。
 
 ```json
 {
@@ -378,15 +378,13 @@ NWORKS_VERBOSE=1           # デバッグログ
       "command": "npx",
       "args": ["-y", "nworks", "mcp"],
       "env": {
-        "NWORKS_CLIENT_ID": "<Client ID>",
-        "NWORKS_CLIENT_SECRET": "<Client Secret>"
+        "NWORKS_CLIENT_SECRET": "<Client Secret>",
+        "NWORKS_PRIVATE_KEY_PATH": "<Private Keyファイルの絶対パス（Service Account使用時）>"
       }
     }
   }
 }
 ```
-
-ボットメッセージも使用する場合は `NWORKS_SERVICE_ACCOUNT`、`NWORKS_PRIVATE_KEY_PATH`、`NWORKS_BOT_ID` も追加してください。
 
 ---
 
