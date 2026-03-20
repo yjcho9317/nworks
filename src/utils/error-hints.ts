@@ -40,7 +40,7 @@ const ERROR_HINTS_MCP: Record<string, string> = {
   ACCESS_DENIED: "접근이 거부됐습니다. Admin에서 Bot을 추가했는지 확인하세요.",
   SERVICE_ACCOUNT_NOT_ALLOWED:
     "서비스 계정으로는 이 API를 사용할 수 없습니다. nworks_login_user tool로 User OAuth 로그인을 먼저 해주세요.",
-  UNAUTHORIZED: "인증이 만료됐습니다. nworks_setup tool로 재설정하세요.",
+  UNAUTHORIZED: "인증이 만료됐습니다. nworks_login_user tool로 다시 브라우저 로그인하세요. 그래도 안 되면 nworks_setup tool로 재설정 후 다시 시도하세요.",
 };
 
 /**
@@ -76,7 +76,7 @@ export function mcpErrorHint(err: unknown, area?: string): string {
     return `Error: [${err.code}] ${err.message}${scopeHint}`;
   }
   if (err instanceof AuthError) {
-    return `Error: ${err.message}\n\n[안내] 인증 정보가 없습니다. nworks_setup tool로 Client ID/Secret을 먼저 설정해주세요.`;
+    return `Error: ${err.message}\n\n[안내] 인증 정보가 없습니다. nworks_setup tool을 먼저 호출하세요 (Client ID 필요, Client Secret은 환경변수 NWORKS_CLIENT_SECRET에서 읽음). 환경변수가 없으면 사용자에게 MCP 설정 파일의 env 필드에 NWORKS_CLIENT_SECRET 추가를 안내하세요.`;
   }
   return `Error: ${(err as Error).message}`;
 }

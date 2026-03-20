@@ -20,7 +20,7 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
     creds = await loadCredentials(profile);
     results.push({ check: "credentials", status: "OK", detail: `clientId: ${creds.clientId}` });
   } catch {
-    results.push({ check: "credentials", status: "FAIL", detail: "인증 정보 없음. `nworks login` 또는 nworks_setup 필요" });
+    results.push({ check: "credentials", status: "FAIL", detail: "인증 정보 없음. CLI: `nworks login --user` / MCP: nworks_setup tool 사용 (환경변수 NWORKS_CLIENT_SECRET 필요)" });
     return results;
   }
 

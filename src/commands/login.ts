@@ -98,7 +98,11 @@ async function handleUserLogin(
       : process.platform === "win32"
         ? "start"
         : "xdg-open";
-  exec(`${openCmd} "${authorizeUrl}"`);
+  if (process.platform === "win32") {
+    exec(`start "" "${authorizeUrl}"`);
+  } else {
+    exec(`${openCmd} "${authorizeUrl}"`);
+  }
 
   const tokenData = await startUserOAuthFlow(scope, profile);
   await saveUserToken(tokenData, profile);
