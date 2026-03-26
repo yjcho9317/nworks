@@ -9,8 +9,9 @@ import * as taskApi from "../api/task.js";
 import * as boardApi from "../api/board.js";
 import { clearCredentials, loadCredentials, loadToken, loadUserToken, saveCredentials, saveUserToken } from "../auth/config.js";
 import { runChecks } from "../commands/doctor.js";
-import { buildAuthorizeUrl, startOAuthCallbackServer } from "../auth/oauth-user.js";
+import { buildAuthorizeUrl, startOAuthCallbackServer, revokeToken } from "../auth/oauth-user.js";
 import { mcpErrorHint } from "../utils/error-hints.js";
+import { generateSecureState, validateLocalPath, sanitizeFileName } from "../utils/sanitize.js";
 
 export function registerTools(server: McpServer): void {
   // Tool 0: 초기 설정
@@ -92,7 +93,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
                 success: true,
                 message: "인증 정보가 저장되었습니다.",
                 nextSteps,
-                clientId,
+                clientId: mask(clientId),
                 clientSecret: `${mask(resolvedSecret)} (환경변수)`,
                 serviceAccount: serviceAccount ?? null,
                 privateKeyPath: resolvedPrivateKeyPath ? `${mask(resolvedPrivateKeyPath)} (환경변수)` : null,
@@ -247,7 +248,11 @@ OAuth Redirect URI: http://localhost:9876/callback`,
       sendNotification: z.boolean().optional().describe("참석자에게 알림 발송 (기본: false)"),
       userId: z.string().optional().describe("대상 사용자 ID (미지정 시 me)"),
     },
-    async ({ summary, start, end, timeZone, description, location, attendees, sendNotification, userId }) => {
+    async ({
+      summary, start, end, timeZone,
+      description, location, attendees,
+      sendNotification, userId,
+    }) => {
       try {
         const result = await calendarApi.createEvent({
           summary,
@@ -288,7 +293,11 @@ OAuth Redirect URI: http://localhost:9876/callback`,
       sendNotification: z.boolean().optional().describe("참석자에게 알림 발송 (기본: false)"),
       userId: z.string().optional().describe("대상 사용자 ID (미지정 시 me)"),
     },
-    async ({ eventId, summary, start, end, timeZone, description, location, sendNotification, userId }) => {
+    async ({
+      eventId, summary, start, end, timeZone,
+      description, location,
+      sendNotification, userId,
+    }) => {
       try {
         await calendarApi.updateEvent({
           eventId,
@@ -410,11 +419,12 @@ OAuth Redirect URI: http://localhost:9876/callback`,
           );
         } else if (filePath) {
           // 로컬 파일 경로 방식
+          const safePath = validateLocalPath(filePath);
           if (process.env["NWORKS_VERBOSE"] === "1") {
-            console.error(`[nworks] MCP upload: filePath=${filePath}`);
+            console.error(`[nworks] MCP upload: filePath=${safePath}`);
           }
           result = await driveApi.uploadFile(
-            filePath,
+            safePath,
             userId ?? "me",
             folderId,
             overwrite ?? false
@@ -430,12 +440,11 @@ OAuth Redirect URI: http://localhost:9876/callback`,
           content: [{ type: "text" as const, text: JSON.stringify({ success: true, ...result }) }],
         };
       } catch (err) {
-        const error = err as Error;
-        const detail = process.env["NWORKS_VERBOSE"] === "1"
-          ? ` | stack: ${error.stack}`
-          : "";
+        if (process.env["NWORKS_VERBOSE"] === "1") {
+          console.error(`[nworks] drive upload error: ${(err as Error).stack}`);
+        }
         return {
-          content: [{ type: "text" as const, text: `${mcpErrorHint(err, "drive.upload")}${detail}` }],
+          content: [{ type: "text" as const, text: mcpErrorHint(err, "drive.upload") }],
           isError: true,
         };
       }
@@ -465,7 +474,10 @@ OAuth Redirect URI: http://localhost:9876/callback`,
           // 로컬 저장 방식 (CLI 환경용)
           const { writeFile } = await import("node:fs/promises");
           const { join } = await import("node:path");
-          const outPath = join(outputDir, fileName);
+          const safeDir = validateLocalPath(outputDir);
+          const safeName = sanitizeFileName(fileName);
+          const outPath = join(safeDir, safeName);
+          validateLocalPath(outPath, safeDir);
           await writeFile(outPath, result.buffer);
           return {
             content: [{ type: "text" as const, text: JSON.stringify({ success: true, fileName, path: outPath, size: result.buffer.length }) }],
@@ -931,11 +943,11 @@ OAuth Redirect URI: http://localhost:9876/callback`,
         const requestedScopes = expandScopes((scope ?? DEFAULT_SCOPE).split(" ").filter(Boolean));
         const mergedScopes = [...new Set([...existingScopes, ...requestedScopes])].join(" ");
 
-        const state = Math.random().toString(36).substring(2);
+        const state = generateSecureState();
         const authorizeUrl = buildAuthorizeUrl(creds.clientId, mergedScopes, state);
 
         // 콜백 서버를 백그라운드로 시작 (토큰 교환 및 저장까지 자동 처리)
-        startOAuthCallbackServer(creds.clientId, creds.clientSecret)
+        startOAuthCallbackServer(creds.clientId, creds.clientSecret, state)
           .then((token) =>
             saveUserToken({
               accessToken: token.accessToken,
@@ -992,9 +1004,10 @@ OAuth Redirect URI: http://localhost:9876/callback`,
           ? userToken.expiresAt > Date.now() / 1000
           : false;
 
+        const mask = (s: string) => s.length <= 4 ? "****" : `****${s.slice(-4)}`;
         const info = {
           serviceAccount: creds.serviceAccount ?? null,
-          clientId: creds.clientId,
+          clientId: mask(creds.clientId),
           botId: creds.botId ?? null,
           tokenValid: isValid,
           userOAuth: userToken
@@ -1020,6 +1033,19 @@ OAuth Redirect URI: http://localhost:9876/callback`,
     {},
     async () => {
       try {
+        try {
+          const creds = await loadCredentials();
+          const token = await loadToken();
+          const userToken = await loadUserToken();
+          if (token?.accessToken) {
+            await revokeToken(token.accessToken, creds.clientId, creds.clientSecret);
+          }
+          if (userToken?.refreshToken) {
+            await revokeToken(userToken.refreshToken, creds.clientId, creds.clientSecret);
+          }
+        } catch {
+          // best-effort
+        }
         await clearCredentials();
         return {
           content: [
@@ -1049,8 +1075,21 @@ OAuth Redirect URI: http://localhost:9876/callback`,
     async () => {
       try {
         const results = await runChecks("default");
+        const maskedResults = results.map((r) => {
+          if (r.check === "credentials" && r.status === "OK") {
+            return { ...r, detail: r.detail.replace(/clientId: .+/, "clientId: ****") };
+          }
+          if (r.check === "privateKey" && r.status === "OK") {
+            return { ...r, detail: "OK (path hidden)" };
+          }
+          if (r.check === "serviceAccount" && r.status === "OK") {
+            const masked = r.detail.length <= 4 ? "****" : `****${r.detail.slice(-4)}`;
+            return { ...r, detail: masked };
+          }
+          return r;
+        });
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(results) }],
+          content: [{ type: "text" as const, text: JSON.stringify(maskedResults) }],
         };
       } catch (err) {
         return {

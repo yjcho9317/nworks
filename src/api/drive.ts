@@ -2,8 +2,17 @@ import { readFile, stat } from "node:fs/promises";
 import { basename } from "node:path";
 import { ApiError, AuthError } from "../utils/error.js";
 import { getValidUserToken } from "../auth/token-user.js";
+import { sanitizePathSegment, sanitizeFileName, validateRedirectUrl } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
+
+const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100MB
+
+const ALLOWED_HOSTS = [
+  "storage.worksmobile.com",
+  "www.worksapis.com",
+  "worksapis.com",
+];
 
 export interface DriveFile {
   fileId: string;
@@ -71,8 +80,8 @@ export async function listFiles(
   cursor?: string,
   profile = "default"
 ): Promise<FileListResult> {
-  const base = `${BASE_URL}/users/${userId}/drive/files`;
-  const path = folderId ? `${base}/${folderId}/children` : base;
+  const base = `${BASE_URL}/users/${sanitizePathSegment(userId)}/drive/files`;
+  const path = folderId ? `${base}/${sanitizePathSegment(folderId)}/children` : base;
 
   const params = new URLSearchParams();
   params.set("count", String(count));
@@ -100,11 +109,16 @@ export async function uploadFile(
   profile = "default"
 ): Promise<UploadResult> {
   const fileName = basename(localPath);
+  const safeName = sanitizeFileName(fileName);
   const fileStat = await stat(localPath);
   const fileSize = fileStat.size;
 
-  const base = `${BASE_URL}/users/${userId}/drive/files`;
-  const createUrl = folderId ? `${base}/${folderId}` : base;
+  if (fileSize > MAX_UPLOAD_SIZE) {
+    throw new ApiError("FILE_TOO_LARGE", `File size (${fileSize} bytes) exceeds maximum allowed (${MAX_UPLOAD_SIZE} bytes)`, 413);
+  }
+
+  const base = `${BASE_URL}/users/${sanitizePathSegment(userId)}/drive/files`;
+  const createUrl = folderId ? `${base}/${sanitizePathSegment(folderId)}` : base;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] POST ${createUrl} (create upload URL)`);
@@ -123,12 +137,13 @@ export async function uploadFile(
   if (!createRes.ok) return handleError(createRes);
 
   const { uploadUrl } = (await createRes.json()) as UploadUrlResult;
+  validateRedirectUrl(uploadUrl, ALLOWED_HOSTS);
   const fileBuffer = await readFile(localPath);
   const boundary = `----nworks${Date.now()}`;
 
   const header = Buffer.from(
     `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="Filedata"; filename="${fileName}"\r\n` +
+      `Content-Disposition: form-data; name="Filedata"; filename="${safeName}"\r\n` +
       `Content-Type: application/octet-stream\r\n\r\n`
   );
   const footer = Buffer.from(`\r\n--${boundary}--\r\n`);
@@ -163,8 +178,12 @@ export async function uploadBuffer(
 ): Promise<UploadResult> {
   const fileSize = fileBuffer.length;
 
-  const base = `${BASE_URL}/users/${userId}/drive/files`;
-  const createUrl = folderId ? `${base}/${folderId}` : base;
+  if (fileSize > MAX_UPLOAD_SIZE) {
+    throw new ApiError("FILE_TOO_LARGE", `File size (${fileSize} bytes) exceeds maximum allowed (${MAX_UPLOAD_SIZE} bytes)`, 413);
+  }
+
+  const base = `${BASE_URL}/users/${sanitizePathSegment(userId)}/drive/files`;
+  const createUrl = folderId ? `${base}/${sanitizePathSegment(folderId)}` : base;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] POST ${createUrl} (create upload URL for buffer)`);
@@ -183,11 +202,12 @@ export async function uploadBuffer(
   if (!createRes.ok) return handleError(createRes);
 
   const { uploadUrl } = (await createRes.json()) as UploadUrlResult;
+  validateRedirectUrl(uploadUrl, ALLOWED_HOSTS);
   const boundary = `----nworks${Date.now()}`;
 
   const header = Buffer.from(
     `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="Filedata"; filename="${fileName}"\r\n` +
+      `Content-Disposition: form-data; name="Filedata"; filename="${sanitizeFileName(fileName)}"\r\n` +
       `Content-Type: application/octet-stream\r\n\r\n`
   );
   const footer = Buffer.from(`\r\n--${boundary}--\r\n`);
@@ -217,7 +237,7 @@ export async function downloadFile(
   userId = "me",
   profile = "default"
 ): Promise<{ buffer: Buffer; fileName?: string }> {
-  const url = `${BASE_URL}/users/${userId}/drive/files/${fileId}/download`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/drive/files/${sanitizePathSegment(fileId)}/download`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url} (get download URL)`);
@@ -239,11 +259,13 @@ export async function downloadFile(
     throw new ApiError("NO_REDIRECT", "No download URL returned", redirectRes.status);
   }
 
+  const safeLocation = validateRedirectUrl(location, ALLOWED_HOSTS);
+
   if (process.env["NWORKS_VERBOSE"] === "1") {
-    console.error(`[nworks] GET ${location} (download content)`);
+    console.error(`[nworks] GET ${safeLocation} (download content)`);
   }
 
-  const downloadRes = await authedFetch(location, { method: "GET" }, profile);
+  const downloadRes = await fetch(safeLocation, { method: "GET" });
 
   if (!downloadRes.ok) return handleError(downloadRes);
 

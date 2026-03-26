@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ApiError, AuthError } from "../utils/error.js";
 import { getValidUserToken } from "../auth/token-user.js";
+import { sanitizePathSegment } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
 
@@ -106,7 +107,7 @@ export async function listEvents(
   const from = encodeURIComponent(fromDateTime);
   const until = encodeURIComponent(untilDateTime);
 
-  const url = `${BASE_URL}/users/${userId}/calendar/events?fromDateTime=${from}&untilDateTime=${until}`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/calendar/events?fromDateTime=${from}&untilDateTime=${until}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);
@@ -153,11 +154,11 @@ export async function createEvent(
     sendNotification: opts.sendNotification ?? false,
   };
 
-  const url = `${BASE_URL}/users/${userId}/calendar/events`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/calendar/events`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] POST ${url}`);
-    console.error(`[nworks] Body: ${JSON.stringify(body, null, 2)}`);
+    console.error(`[nworks] Body: ${JSON.stringify(body).length} bytes`);
   }
 
   const res = await authedFetch(
@@ -182,7 +183,7 @@ export async function getEvent(
   userId = "me",
   profile = "default"
 ): Promise<CalendarEvent> {
-  const url = `${BASE_URL}/users/${userId}/calendar/events/${eventId}`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/calendar/events/${sanitizePathSegment(eventId)}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);
@@ -239,11 +240,11 @@ export async function updateEvent(
     sendNotification: opts.sendNotification ?? false,
   };
 
-  const url = `${BASE_URL}/users/${userId}/calendar/events/${opts.eventId}`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/calendar/events/${sanitizePathSegment(opts.eventId)}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] PUT ${url}`);
-    console.error(`[nworks] Body: ${JSON.stringify(body, null, 2)}`);
+    console.error(`[nworks] Body: ${JSON.stringify(body).length} bytes`);
   }
 
   const res = await authedFetch(
@@ -268,7 +269,7 @@ export async function deleteEvent(
   const params = new URLSearchParams();
   params.set("sendNotification", String(sendNotification));
 
-  const url = `${BASE_URL}/users/${userId}/calendar/events/${eventId}?${params.toString()}`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/calendar/events/${sanitizePathSegment(eventId)}?${params.toString()}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] DELETE ${url}`);

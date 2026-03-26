@@ -1,5 +1,6 @@
 import { request } from "./client.js";
 import { loadCredentials } from "../auth/config.js";
+import { sanitizePathSegment } from "../utils/sanitize.js";
 
 export type MessageType = "text" | "button" | "list";
 
@@ -31,7 +32,11 @@ function buildContent(opts: SendOptions): Record<string, unknown> {
   }
 
   if (type === "button") {
-    const actions = opts.actions ? JSON.parse(opts.actions) as unknown[] : [];
+    const actions = opts.actions ? (() => {
+      const parsed: unknown = JSON.parse(opts.actions!);
+      if (!Array.isArray(parsed)) throw new Error("actions must be a JSON array");
+      return parsed as unknown[];
+    })() : [];
     return {
       type: "button_template",
       contentText: opts.text,
@@ -40,7 +45,11 @@ function buildContent(opts: SendOptions): Record<string, unknown> {
   }
 
   if (type === "list") {
-    const elements = opts.elements ? JSON.parse(opts.elements) as unknown[] : [];
+    const elements = opts.elements ? (() => {
+      const parsed: unknown = JSON.parse(opts.elements!);
+      if (!Array.isArray(parsed)) throw new Error("elements must be a JSON array");
+      return parsed as unknown[];
+    })() : [];
     return {
       type: "list_template",
       coverData: { text: opts.text },
@@ -68,7 +77,7 @@ export async function send(opts: SendOptions): Promise<SendResult> {
   if (opts.to) {
     const result = await request<{ messageId?: string }>({
       method: "POST",
-      path: `/bots/${creds.botId}/users/${opts.to}/messages`,
+      path: `/bots/${sanitizePathSegment(creds.botId)}/users/${sanitizePathSegment(opts.to)}/messages`,
       body,
       profile,
     });
@@ -77,7 +86,7 @@ export async function send(opts: SendOptions): Promise<SendResult> {
   if (opts.channel) {
     const result = await request<{ messageId?: string }>({
       method: "POST",
-      path: `/bots/${creds.botId}/channels/${opts.channel}/messages`,
+      path: `/bots/${sanitizePathSegment(creds.botId)}/channels/${sanitizePathSegment(opts.channel)}/messages`,
       body,
       profile,
     });
@@ -103,7 +112,7 @@ export async function listMembers(
 
   const result = await request<{ members: string[]; responseMetaData?: { nextCursor?: string } }>({
     method: "GET",
-    path: `/bots/${creds.botId}/channels/${channelId}/members`,
+    path: `/bots/${sanitizePathSegment(creds.botId)}/channels/${sanitizePathSegment(channelId)}/members`,
     profile,
   });
   return { members: result.members ?? [], responseMetaData: result.responseMetaData };

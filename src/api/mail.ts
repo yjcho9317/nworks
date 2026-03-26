@@ -1,5 +1,6 @@
 import { ApiError, AuthError } from "../utils/error.js";
 import { getValidUserToken } from "../auth/token-user.js";
+import { sanitizePathSegment } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
 
@@ -95,7 +96,7 @@ async function handleError(res: Response): Promise<never> {
 export async function sendMail(opts: SendMailOptions): Promise<void> {
   const userId = opts.userId ?? "me";
   const profile = opts.profile ?? "default";
-  const url = `${BASE_URL}/users/${userId}/mail`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/mail`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] POST ${url}`);
@@ -138,7 +139,7 @@ export async function listMails(
   if (cursor) params.set("cursor", cursor);
   if (isUnread) params.set("isUnread", "true");
 
-  const url = `${BASE_URL}/users/${userId}/mail/mailfolders/${folderId}/children?${params.toString()}`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/mail/mailfolders/${sanitizePathSegment(String(folderId))}/children?${params.toString()}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);
@@ -163,7 +164,7 @@ export async function readMail(
   userId = "me",
   profile = "default"
 ): Promise<MailDetail> {
-  const url = `${BASE_URL}/users/${userId}/mail/${mailId}`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/mail/${sanitizePathSegment(String(mailId))}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);

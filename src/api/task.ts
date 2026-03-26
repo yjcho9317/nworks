@@ -1,5 +1,6 @@
 import { ApiError, AuthError } from "../utils/error.js";
 import { getValidUserToken } from "../auth/token-user.js";
+import { sanitizePathSegment } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
 
@@ -85,7 +86,7 @@ async function resolveUserId(
 ): Promise<string> {
   if (userId !== "me") return userId;
 
-  const url = `${BASE_URL}/users/me`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}`;
   const res = await authedFetch(url, { method: "GET" }, profile);
   if (!res.ok) return handleError(res);
 
@@ -100,7 +101,7 @@ export async function listCategories(
   userId = "me",
   profile = "default"
 ): Promise<TaskCategory[]> {
-  const url = `${BASE_URL}/users/${userId}/task-categories`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/task-categories`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);
@@ -127,7 +128,7 @@ export async function listTasks(
   params.set("status", status);
   if (cursor) params.set("cursor", cursor);
 
-  const url = `${BASE_URL}/users/${userId}/tasks?${params.toString()}`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/tasks?${params.toString()}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);
@@ -144,7 +145,7 @@ export async function getTask(
   taskId: string,
   profile = "default"
 ): Promise<Task> {
-  const url = `${BASE_URL}/tasks/${taskId}`;
+  const url = `${BASE_URL}/tasks/${sanitizePathSegment(taskId)}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);
@@ -174,11 +175,11 @@ export async function createTask(opts: CreateTaskOptions): Promise<Task> {
   if (opts.dueDate) body.dueDate = opts.dueDate;
   if (opts.categoryId) body.categoryId = opts.categoryId;
 
-  const url = `${BASE_URL}/users/${userId}/tasks`;
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/tasks`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] POST ${url}`);
-    console.error(`[nworks] Body: ${JSON.stringify(body, null, 2)}`);
+    console.error(`[nworks] Body: ${JSON.stringify(body).length} bytes`);
   }
 
   const res = await authedFetch(
@@ -206,7 +207,7 @@ export async function updateTask(opts: UpdateTaskOptions): Promise<Task> {
   if (opts.content !== undefined) body.content = opts.content;
   if (opts.dueDate !== undefined) body.dueDate = opts.dueDate;
 
-  const url = `${BASE_URL}/tasks/${opts.taskId}`;
+  const url = `${BASE_URL}/tasks/${sanitizePathSegment(opts.taskId)}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] PATCH ${url}`);
@@ -230,7 +231,7 @@ export async function completeTask(
   taskId: string,
   profile = "default"
 ): Promise<void> {
-  const url = `${BASE_URL}/tasks/${taskId}/complete`;
+  const url = `${BASE_URL}/tasks/${sanitizePathSegment(taskId)}/complete`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] POST ${url}`);
@@ -250,7 +251,7 @@ export async function incompleteTask(
   taskId: string,
   profile = "default"
 ): Promise<void> {
-  const url = `${BASE_URL}/tasks/${taskId}/incomplete`;
+  const url = `${BASE_URL}/tasks/${sanitizePathSegment(taskId)}/incomplete`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] POST ${url}`);
@@ -270,7 +271,7 @@ export async function deleteTask(
   taskId: string,
   profile = "default"
 ): Promise<void> {
-  const url = `${BASE_URL}/tasks/${taskId}`;
+  const url = `${BASE_URL}/tasks/${sanitizePathSegment(taskId)}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] DELETE ${url}`);

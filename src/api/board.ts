@@ -1,5 +1,6 @@
 import { ApiError, AuthError } from "../utils/error.js";
 import { getValidUserToken } from "../auth/token-user.js";
+import { sanitizePathSegment } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
 
@@ -100,7 +101,7 @@ export async function listBoards(
 
   const text = await res.text();
   if (process.env["NWORKS_VERBOSE"] === "1") {
-    console.error(`[nworks] Response: ${text}`);
+    console.error(`[nworks] Response: ${res.status} (${text.length} bytes)`);
   }
 
   const data = safeParseJson<BoardListResult>(text);
@@ -117,7 +118,7 @@ export async function listPosts(
   params.set("count", String(count));
   if (cursor) params.set("cursor", cursor);
 
-  const url = `${BASE_URL}/boards/${boardId}/posts?${params.toString()}`;
+  const url = `${BASE_URL}/boards/${sanitizePathSegment(boardId)}/posts?${params.toString()}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);
@@ -128,7 +129,7 @@ export async function listPosts(
 
   const text = await res.text();
   if (process.env["NWORKS_VERBOSE"] === "1") {
-    console.error(`[nworks] Response: ${text}`);
+    console.error(`[nworks] Response: ${res.status} (${text.length} bytes)`);
   }
 
   const data = safeParseJson<PostListResult>(text);
@@ -140,7 +141,7 @@ export async function readPost(
   postId: string,
   profile = "default"
 ): Promise<Post> {
-  const url = `${BASE_URL}/boards/${boardId}/posts/${postId}`;
+  const url = `${BASE_URL}/boards/${sanitizePathSegment(boardId)}/posts/${sanitizePathSegment(postId)}`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url}`);
@@ -151,7 +152,7 @@ export async function readPost(
 
   const text = await res.text();
   if (process.env["NWORKS_VERBOSE"] === "1") {
-    console.error(`[nworks] Response: ${text}`);
+    console.error(`[nworks] Response: ${res.status} (${text.length} bytes)`);
   }
 
   return safeParseJson<Post>(text);
@@ -167,11 +168,11 @@ export async function createPost(opts: CreatePostOptions): Promise<Post> {
   if (opts.enableComment !== undefined) body.enableComment = opts.enableComment;
   if (opts.sendNotifications !== undefined) body.sendNotifications = opts.sendNotifications;
 
-  const url = `${BASE_URL}/boards/${opts.boardId}/posts`;
+  const url = `${BASE_URL}/boards/${sanitizePathSegment(opts.boardId)}/posts`;
 
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] POST ${url}`);
-    console.error(`[nworks] Body: ${JSON.stringify(body, null, 2)}`);
+    console.error(`[nworks] Body: ${JSON.stringify(body).length} bytes`);
   }
 
   const res = await authedFetch(
@@ -187,7 +188,7 @@ export async function createPost(opts: CreatePostOptions): Promise<Post> {
   if (res.status === 201 || res.ok) {
     const text = await res.text();
     if (process.env["NWORKS_VERBOSE"] === "1") {
-      console.error(`[nworks] Response: ${text}`);
+      console.error(`[nworks] Response: ${res.status} (${text.length} bytes)`);
     }
     return safeParseJson<Post>(text);
   }

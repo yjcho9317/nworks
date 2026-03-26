@@ -42,7 +42,9 @@ export async function request<T>(
   }
 
   if (res.status === 429 && _retryCount < MAX_RETRIES) {
-    const retryAfter = parseInt(res.headers.get("Retry-After") ?? "5", 10);
+    const MAX_RETRY_AFTER = 60;
+    const rawRetry = parseInt(res.headers.get("Retry-After") ?? "5", 10);
+    const retryAfter = Math.min(Number.isNaN(rawRetry) ? 5 : rawRetry, MAX_RETRY_AFTER);
     await sleep(retryAfter * 1000);
     return request<T>(opts, _retryCount + 1);
   }
