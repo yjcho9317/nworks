@@ -31,6 +31,7 @@ export interface UserTokenData {
   scope: string;
 }
 
+const IS_UNIX = process.platform !== "win32";
 const CONFIG_DIR = join(homedir(), ".config", "nworks");
 const CREDENTIALS_PATH = join(CONFIG_DIR, "credentials.json");
 const TOKEN_PATH = join(CONFIG_DIR, "token.json");
@@ -38,7 +39,7 @@ const USER_TOKEN_PATH = join(CONFIG_DIR, "user-token.json");
 
 async function ensureConfigDir(): Promise<void> {
   if (!existsSync(CONFIG_DIR)) {
-    await mkdir(CONFIG_DIR, { recursive: true });
+    await mkdir(CONFIG_DIR, { recursive: true, ...(IS_UNIX && { mode: 0o700 }) });
   }
 }
 
@@ -94,7 +95,11 @@ export async function saveCredentials(
   }
 
   profiles[profile] = creds;
-  await writeFile(CREDENTIALS_PATH, JSON.stringify(profiles, null, 2), "utf-8");
+  await writeFile(
+    CREDENTIALS_PATH,
+    JSON.stringify(profiles, null, 2),
+    { encoding: "utf-8", ...(IS_UNIX && { mode: 0o600 }) }
+  );
 }
 
 export async function loadToken(profile = "default"): Promise<TokenData | null> {
@@ -124,7 +129,11 @@ export async function saveToken(
   }
 
   tokens[profile] = token;
-  await writeFile(TOKEN_PATH, JSON.stringify(tokens, null, 2), "utf-8");
+  await writeFile(
+    TOKEN_PATH,
+    JSON.stringify(tokens, null, 2),
+    { encoding: "utf-8", ...(IS_UNIX && { mode: 0o600 }) }
+  );
 }
 
 export async function loadUserToken(profile = "default"): Promise<UserTokenData | null> {
@@ -156,7 +165,11 @@ export async function saveUserToken(
   }
 
   tokens[profile] = token;
-  await writeFile(USER_TOKEN_PATH, JSON.stringify(tokens, null, 2), "utf-8");
+  await writeFile(
+    USER_TOKEN_PATH,
+    JSON.stringify(tokens, null, 2),
+    { encoding: "utf-8", ...(IS_UNIX && { mode: 0o600 }) }
+  );
 }
 
 export async function clearCredentials(profile = "default"): Promise<void> {
@@ -167,7 +180,7 @@ export async function clearCredentials(profile = "default"): Promise<void> {
     await writeFile(
       CREDENTIALS_PATH,
       JSON.stringify(profiles, null, 2),
-      "utf-8"
+      { encoding: "utf-8", ...(IS_UNIX && { mode: 0o600 }) }
     );
   }
 
@@ -175,13 +188,21 @@ export async function clearCredentials(profile = "default"): Promise<void> {
     const raw = await readFile(TOKEN_PATH, "utf-8");
     const tokens = JSON.parse(raw) as Record<string, TokenData>;
     delete tokens[profile];
-    await writeFile(TOKEN_PATH, JSON.stringify(tokens, null, 2), "utf-8");
+    await writeFile(
+      TOKEN_PATH,
+      JSON.stringify(tokens, null, 2),
+      { encoding: "utf-8", ...(IS_UNIX && { mode: 0o600 }) }
+    );
   }
 
   if (existsSync(USER_TOKEN_PATH)) {
     const raw = await readFile(USER_TOKEN_PATH, "utf-8");
     const tokens = JSON.parse(raw) as Record<string, UserTokenData>;
     delete tokens[profile];
-    await writeFile(USER_TOKEN_PATH, JSON.stringify(tokens, null, 2), "utf-8");
+    await writeFile(
+      USER_TOKEN_PATH,
+      JSON.stringify(tokens, null, 2),
+      { encoding: "utf-8", ...(IS_UNIX && { mode: 0o600 }) }
+    );
   }
 }

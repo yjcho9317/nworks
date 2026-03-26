@@ -34,7 +34,8 @@ export async function refreshToken(profile = "default"): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new AuthError(`Token exchange failed (${res.status}): ${text}`);
+    const truncated = text.length > 200 ? text.substring(0, 200) + "..." : text;
+    throw new AuthError(`Token exchange failed (${res.status}): ${truncated}`);
   }
 
   const data = (await res.json()) as {

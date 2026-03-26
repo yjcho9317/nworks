@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { randomBytes } from "node:crypto";
 import { URL } from "node:url";
 import { AuthError } from "../utils/error.js";
 import { loadCredentials } from "./config.js";
@@ -26,21 +27,18 @@ export function buildAuthorizeUrl(clientId: string, scope: string, state: string
   return `${AUTH_URL}?${params.toString()}`;
 }
 
-/**
- * Start local HTTP server and wait for OAuth callback with auth code.
- * Then exchange code for tokens.
- */
 export async function startUserOAuthFlow(
   _scope: string,
-  profile = "default"
+  profile = "default",
+  expectedState?: string
 ): Promise<UserTokenResult> {
   const creds = await loadCredentials(profile);
-  const code = await waitForAuthCode();
+  const code = await waitForAuthCode(expectedState ?? randomBytes(16).toString("hex"));
 
   return exchangeCodeForToken(code, creds.clientId, creds.clientSecret);
 }
 
-function waitForAuthCode(): Promise<string> {
+function waitForAuthCode(expectedState: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       server.close();
@@ -58,6 +56,16 @@ function waitForAuthCode(): Promise<string> {
 
       const code = url.searchParams.get("code");
       const error = url.searchParams.get("error");
+      const state = url.searchParams.get("state");
+
+      if (state !== expectedState) {
+        res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
+        res.end("<h2>보안 오류</h2><p>state 불일치. 다시 시도하세요.</p>");
+        clearTimeout(timeout);
+        server.close();
+        reject(new AuthError("OAuth state mismatch — possible CSRF attack."));
+        return;
+      }
 
       if (error) {
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -84,7 +92,7 @@ function waitForAuthCode(): Promise<string> {
       resolve(code);
     });
 
-    server.listen(REDIRECT_PORT, () => {
+    server.listen(REDIRECT_PORT, "127.0.0.1", () => {
       // Server ready — caller opens browser
     });
 
@@ -116,7 +124,8 @@ async function exchangeCodeForToken(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new AuthError(`Token exchange failed (${res.status}): ${text}`);
+    const truncated = text.length > 200 ? text.substring(0, 200) + "..." : text;
+    throw new AuthError(`Token exchange failed (${res.status}): ${truncated}`);
   }
 
   const data = (await res.json()) as {
@@ -155,7 +164,8 @@ export async function refreshUserToken(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new AuthError(`Token refresh failed (${res.status}): ${text}`);
+    const truncated = text.length > 200 ? text.substring(0, 200) + "..." : text;
+    throw new AuthError(`Token refresh failed (${res.status}): ${truncated}`);
   }
 
   const data = (await res.json()) as {
@@ -173,17 +183,37 @@ export async function refreshUserToken(
   };
 }
 
-/**
- * Start OAuth callback server in background and return token when callback arrives.
- * Used by MCP tool to fire-and-forget while returning the auth URL immediately.
- */
 export function startOAuthCallbackServer(
   clientId: string,
   clientSecret: string,
+  expectedState: string,
 ): Promise<UserTokenResult> {
-  return waitForAuthCode().then((code) =>
+  return waitForAuthCode(expectedState).then((code) =>
     exchangeCodeForToken(code, clientId, clientSecret)
   );
+}
+
+export async function revokeToken(
+  token: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<void> {
+  try {
+    const res = await fetch("https://auth.worksmobile.com/oauth2/v2.0/revoke", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        token,
+        client_id: clientId,
+        client_secret: clientSecret,
+      }).toString(),
+    });
+    if (!res.ok && process.env["NWORKS_VERBOSE"] === "1") {
+      console.error(`[nworks] Token revoke returned ${res.status}`);
+    }
+  } catch {
+    // best-effort: 실패해도 로컬 삭제는 진행
+  }
 }
 
 export { REDIRECT_URI };

@@ -104,7 +104,7 @@ async function handleUserLogin(
     exec(`${openCmd} "${authorizeUrl}"`);
   }
 
-  const tokenData = await startUserOAuthFlow(scope, profile);
+  const tokenData = await startUserOAuthFlow(scope, profile, state);
   await saveUserToken(tokenData, profile);
 
   output(
