@@ -391,3 +391,8 @@ Sensitive values (Client Secret, Private Key path) must be set via MCP config `e
 ## License
 
 Apache-2.0
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/yjcho9317-nworks).
+
