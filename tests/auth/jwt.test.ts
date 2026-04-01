@@ -6,6 +6,7 @@ import type { Credentials } from "../../src/auth/config.js";
 // Mock fs
 vi.mock("node:fs/promises", () => ({
   readFile: vi.fn().mockResolvedValue("-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----"),
+  stat: vi.fn().mockResolvedValue({ mode: 0o100600 }),
 }));
 
 // Mock jsonwebtoken
