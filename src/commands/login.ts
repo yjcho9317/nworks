@@ -2,9 +2,10 @@ import { Command } from "commander";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-import { saveCredentials, saveUserToken, loadCredentials, type Credentials } from "../auth/config.js";
+import { saveCredentials, saveUserToken, loadCredentials, loadUserToken, type Credentials } from "../auth/config.js";
 import { refreshToken } from "../auth/token.js";
 import { startUserOAuthFlow, buildAuthorizeUrl } from "../auth/oauth-user.js";
+import { resolveScopes, mergeScopes } from "../auth/scopes.js";
 import { output, errorOutput } from "../output/format.js";
 import { randomBytes } from "node:crypto";
 
@@ -24,7 +25,8 @@ async function prompt(question: string): Promise<string> {
 export const loginCommand = new Command("login")
   .description("Authenticate with NAVER WORKS")
   .option("--user", "User OAuth login (opens browser)")
-  .option("--scope <scope>", "OAuth scope for user login", "calendar.read")
+  .option("--preset <preset>", "Scope preset: readonly | default | all (default: all)")
+  .option("--scope <scope>", "Advanced: raw space-separated scopes (overrides --preset)")
   .option("--client-id <id>", "Client ID")
   .option("--client-secret <secret>", "Client Secret")
   .option("--service-account <account>", "Service Account ID")
@@ -38,7 +40,7 @@ export const loginCommand = new Command("login")
       const profile = opts.profile as string;
 
       if (opts.user) {
-        await handleUserLogin(opts.scope as string, profile, opts);
+        await handleUserLogin(profile, opts);
       } else {
         await handleServiceAccountLogin(opts);
       }
@@ -50,7 +52,6 @@ export const loginCommand = new Command("login")
   });
 
 async function handleUserLogin(
-  scope: string,
   profile: string,
   opts: Record<string, unknown>
 ): Promise<void> {
@@ -84,27 +85,36 @@ async function handleUserLogin(
     await saveCredentials({ clientId, clientSecret }, profile);
   }
 
+  // 기존 토큰의 scope와 합쳐 재로그인 시 권한이 줄지 않게 한다(MCP login_user와 동일 정책).
+  const requestedScopes = resolveScopes((opts.preset as string | undefined) ?? (opts.scope as string | undefined));
+  let existingScopes: string[] = [];
+  try {
+    const existingToken = await loadUserToken(profile);
+    existingScopes = existingToken?.scope?.split(" ").filter(Boolean) ?? [];
+  } catch {
+    // 기존 토큰 없음 — 무시
+  }
+  const mergedScope = mergeScopes(existingScopes, requestedScopes);
+
   const state = randomBytes(16).toString("hex");
-  const authorizeUrl = buildAuthorizeUrl(clientId, scope, state);
+  const authorizeUrl = buildAuthorizeUrl(clientId, mergedScope, state);
 
   console.error(`\nOpening browser for NAVER WORKS login...`);
   console.error(`If the browser does not open, visit this URL:\n`);
   console.error(`  ${authorizeUrl}\n`);
 
-  const { exec } = await import("node:child_process");
-  const openCmd =
-    process.platform === "darwin"
-      ? "open"
-      : process.platform === "win32"
-        ? "start"
-        : "xdg-open";
-  if (process.platform === "win32") {
-    exec(`start "" "${authorizeUrl}"`);
+  // execFile로 URL을 셸 문자열이 아닌 인자로 전달해 셸 인젝션 여지를 없앤다.
+  const { execFile } = await import("node:child_process");
+  if (process.platform === "darwin") {
+    execFile("open", [authorizeUrl]);
+  } else if (process.platform === "win32") {
+    // Windows의 start는 cmd 내장 명령이라 cmd /c로 실행한다. 빈 "" 는 start의 title 인자.
+    execFile("cmd", ["/c", "start", "", authorizeUrl]);
   } else {
-    exec(`${openCmd} "${authorizeUrl}"`);
+    execFile("xdg-open", [authorizeUrl]);
   }
 
-  const tokenData = await startUserOAuthFlow(scope, profile, state);
+  const tokenData = await startUserOAuthFlow(mergedScope, profile, state);
   await saveUserToken(tokenData, profile);
 
   output(
