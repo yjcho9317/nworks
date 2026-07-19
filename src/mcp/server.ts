@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerTools } from "./tools.js";
 import { loadCredentials, loadUserToken } from "../auth/config.js";
+import { VERSION } from "../version.js";
 
 export async function startMcpServer(): Promise<void> {
   // 인증 상태 확인 (경고만, 서버는 항상 시작)
@@ -26,7 +27,7 @@ export async function startMcpServer(): Promise<void> {
 
   const server = new McpServer({
     name: "nworks",
-    version: "1.0.0",
+    version: VERSION,
   });
 
   registerTools(server);
