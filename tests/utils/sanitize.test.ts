@@ -50,9 +50,13 @@ describe("sanitizeFileName", () => {
     expect(sanitizeFileName("file\r\nname.txt")).toBe("file__name.txt");
   });
 
-  it("replaces quotes and backslashes", () => {
+  it("replaces quotes", () => {
     expect(sanitizeFileName('file"name.txt')).toBe("file_name.txt");
-    expect(sanitizeFileName("file\\name.txt")).toBe("file_name.txt");
+  });
+
+  it("strips backslash path components on all platforms", () => {
+    expect(sanitizeFileName("dir\\name.txt")).toBe("name.txt");
+    expect(sanitizeFileName("a\\b\\c.txt")).toBe("c.txt");
   });
 
   it("rejects empty string", () => {

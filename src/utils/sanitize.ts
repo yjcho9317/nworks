@@ -1,4 +1,4 @@
-import { basename, resolve, sep } from "node:path";
+import { resolve, sep } from "node:path";
 import { randomBytes } from "node:crypto";
 
 /** 경로 세그먼트에서 /, \, .. 을 차단하여 경로 탈출을 방지한다 */
@@ -18,8 +18,12 @@ export function sanitizeFileName(name: string): string {
   if (!name || typeof name !== "string") {
     throw new Error("File name must be a non-empty string");
   }
-  const base = basename(name);
-  return base.replace(/[\r\n"\\]/g, "_");
+  // basename은 OS마다 구분자가 달라(Windows는 \도 구분자, POSIX는 아님) 결과가 갈린다.
+  // 두 OS에서 동일하게 /와 \를 모두 경로 구분자로 보고 마지막 세그먼트만 취한다.
+  const segments = name.split(/[/\\]/).filter((s) => s.length > 0);
+  const base = segments[segments.length - 1] ?? "";
+  // Content-Disposition 헤더 주입 방지: 남은 CRLF·따옴표 치환
+  return base.replace(/[\r\n"]/g, "_");
 }
 
 /** allowedBase 지정 시 해당 디렉토리 하위인지 검증한다 */
