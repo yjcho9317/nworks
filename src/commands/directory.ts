@@ -5,12 +5,16 @@ import { cliError } from "../output/cli-error.js";
 
 const membersCommand = new Command("members")
   .description("List organization members (requires directory.read scope)")
+  .option("--count <n>", "Items per page (default: 100)")
+  .option("--cursor <cursor>", "Pagination cursor from a previous response")
   .option("--profile <name>", "Profile name", "default")
   .option("--json", "JSON output")
   .action(async (opts) => {
     try {
-      const result = await directoryApi.listUsers(opts.profile as string);
+      const count = opts.count ? Number(opts.count) : 100;
+      const result = await directoryApi.listUsers(count, opts.cursor as string | undefined, opts.profile as string);
       const formatted = {
+        nextCursor: result.responseMetaData?.nextCursor ?? null,
         users: result.users.map((u) => ({
           userId: u.userId,
           userName: [u.userName?.lastName, u.userName?.firstName]

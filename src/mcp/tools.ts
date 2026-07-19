@@ -1,4 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ToolCallback } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import * as messageApi from "../api/message.js";
 import * as directoryApi from "../api/directory.js";
@@ -10,12 +12,65 @@ import * as boardApi from "../api/board.js";
 import { clearCredentials, loadCredentials, loadToken, loadUserToken, saveCredentials, saveUserToken } from "../auth/config.js";
 import { runChecks } from "../commands/doctor.js";
 import { buildAuthorizeUrl, startOAuthCallbackServer, revokeToken } from "../auth/oauth-user.js";
+import { resolveScopes, mergeScopes } from "../auth/scopes.js";
 import { mcpErrorHint } from "../utils/error-hints.js";
 import { generateSecureState, validateLocalPath, sanitizeFileName } from "../utils/sanitize.js";
 
+// 26개 도구의 MCP annotations를 한 곳에서 관리한다. 실제 HTTP 메서드와 대조해 분류했다:
+// readOnlyHint=상태를 전혀 바꾸지 않음, destructiveHint=삭제·덮어쓰기 등 비가산적 변경,
+// idempotentHint=같은 인자로 반복해도 추가 효과 없음, openWorldHint=외부 API와 상호작용.
+// annotations는 힌트일 뿐 보안 경계가 아니며(클라이언트가 신뢰하지 않을 수 있음),
+// 오표기가 무표기보다 위험하므로(자동 승인 클라이언트가 신뢰) 보수적으로 분류한다.
+const TOOL_ANNOTATIONS: Record<string, ToolAnnotations> = {
+  nworks_setup: { title: "Save credentials", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  nworks_message_send: { title: "Send message", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  nworks_message_members: { title: "List channel members", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_directory_members: { title: "List organization members", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_calendar_list: { title: "List calendar events", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_calendar_create: { title: "Create calendar event", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  nworks_calendar_update: { title: "Update calendar event", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_calendar_delete: { title: "Delete calendar event", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_drive_list: { title: "List drive files", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_drive_upload: { title: "Upload file to drive", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  // download는 outputDir 지정 시 로컬 파일을 쓰므로 순수 읽기가 아니다(readOnlyHint=false).
+  nworks_drive_download: { title: "Download drive file", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  nworks_mail_send: { title: "Send mail", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  nworks_mail_list: { title: "List mail", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_mail_read: { title: "Read mail", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_task_list: { title: "List tasks", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_task_create: { title: "Create task", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  nworks_task_update: { title: "Update task", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_task_delete: { title: "Delete task", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_board_list: { title: "List boards", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_board_posts: { title: "List board posts", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_board_read: { title: "Read board post", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_board_create: { title: "Create board post", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  nworks_login_user: { title: "Log in with User OAuth", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  nworks_whoami: { title: "Show auth status", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_logout: { title: "Log out", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_doctor: { title: "Diagnose connection", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+};
+
+// deprecated된 server.tool 대신 registerTool로 등록하며 위 annotations를 자동 부착한다.
+// 도구별 핸들러는 그대로 두고 등록 경로만 통일한다.
+function defineTool<Args extends z.ZodRawShape>(
+  server: McpServer,
+  name: string,
+  description: string,
+  inputSchema: Args,
+  handler: ToolCallback<Args>
+): void {
+  const annotations = TOOL_ANNOTATIONS[name];
+  server.registerTool(
+    name,
+    { description, inputSchema, ...(annotations ? { annotations } : {}) },
+    handler
+  );
+}
+
 export function registerTools(server: McpServer): void {
   // Tool 0: 초기 설정
-  server.tool(
+  defineTool(server,
     "nworks_setup",
     `NAVER WORKS API 인증 정보를 설정합니다.
 
@@ -112,7 +167,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 1: 메시지 전송
-  server.tool(
+  defineTool(server,
     "nworks_message_send",
     "NAVER WORKS 메시지를 전송합니다 (봇이 사용자 또는 채널에 발송). Service Account 인증 사용 (nworks_setup에서 serviceAccount, botId 설정 + 환경변수 NWORKS_PRIVATE_KEY_PATH 필요. User OAuth 불필요)",
     {
@@ -155,7 +210,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 2: 채널 구성원
-  server.tool(
+  defineTool(server,
     "nworks_message_members",
     "특정 채널의 구성원 목록을 조회합니다. '이 채널에 누가 있어?' 등의 요청에 사용. Service Account 인증 사용 (nworks_setup 필요)",
     {
@@ -177,15 +232,23 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 3: 조직 구성원 목록
-  server.tool(
+  defineTool(server,
     "nworks_directory_members",
-    "NAVER WORKS 조직 구성원(직원) 목록을 조회합니다. '구성원 목록 보여줘', '팀원 찾아줘', '누구한테 메시지 보낼지 userId 찾기' 등에 사용. Service Account 인증 사용 (nworks_setup 필요). 메시지 전송 시 수신자 userId를 여기서 조회 가능",
-    {},
-    async () => {
+    "NAVER WORKS 조직 구성원(직원) 목록을 조회합니다. '구성원 목록 보여줘', '팀원 찾아줘', '누구한테 메시지 보낼지 userId 찾기' 등에 사용. Service Account 인증 사용 (nworks_setup 필요). 메시지 전송 시 수신자 userId를 여기서 조회 가능. 구성원이 많으면 nextCursor로 다음 페이지를 이어서 조회",
+    {
+      count: z.number().optional().describe("페이지당 항목 수 (기본: 100)"),
+      cursor: z.string().optional().describe("페이지네이션 커서 (이전 응답의 nextCursor 값)"),
+    },
+    async ({ count, cursor }) => {
       try {
-        const result = await directoryApi.listUsers();
+        const result = await directoryApi.listUsers(count ?? 100, cursor);
         return {
-          content: [{ type: "text" as const, text: JSON.stringify(result) }],
+          content: [{ type: "text" as const, text: JSON.stringify({
+            users: result.users,
+            count: result.users.length,
+            hasMore: !!result.responseMetaData?.nextCursor,
+            nextCursor: result.responseMetaData?.nextCursor ?? null,
+          }) }],
         };
       } catch (err) {
         return {
@@ -197,7 +260,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 4: 캘린더 일정 목록
-  server.tool(
+  defineTool(server,
     "nworks_calendar_list",
     "사용자의 캘린더 일정/스케줄을 조회합니다. '오늘 일정 알려줘', '이번 주 스케줄 확인' 등의 요청에 사용. User OAuth 인증 필요 (calendar.read scope). 미로그인 시 nworks_login_user로 로그인 필요",
     {
@@ -234,7 +297,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 5: 캘린더 일정 생성
-  server.tool(
+  defineTool(server,
     "nworks_calendar_create",
     "캘린더 일정을 새로 만듭니다. '회의 잡아줘', '일정 등록해줘' 등의 요청에 사용. User OAuth 인증 필요 (calendar + calendar.read scope)",
     {
@@ -279,7 +342,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 6: 캘린더 일정 수정
-  server.tool(
+  defineTool(server,
     "nworks_calendar_update",
     "기존 캘린더 일정을 수정합니다. '일정 시간 변경해줘', '회의 제목 바꿔줘' 등의 요청에 사용. User OAuth 인증 필요 (calendar + calendar.read scope). eventId는 nworks_calendar_list로 조회 가능",
     {
@@ -323,7 +386,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 7: 캘린더 일정 삭제
-  server.tool(
+  defineTool(server,
     "nworks_calendar_delete",
     "캘린더 일정을 삭제합니다. '일정 취소해줘' 등의 요청에 사용. User OAuth 인증 필요 (calendar + calendar.read scope). eventId는 nworks_calendar_list로 조회 가능",
     {
@@ -351,7 +414,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 8: 드라이브 파일 목록
-  server.tool(
+  defineTool(server,
     "nworks_drive_list",
     "NAVER WORKS 드라이브의 파일/폴더 목록을 조회합니다. '드라이브 파일 보여줘', '내 파일 목록' 등의 요청에 사용. User OAuth 인증 필요 (file.read scope)",
     {
@@ -389,7 +452,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 9: 드라이브 파일 업로드
-  server.tool(
+  defineTool(server,
     "nworks_drive_upload",
     "파일을 드라이브에 업로드합니다 (User OAuth file scope 필요). content(base64)와 fileName으로 전달하거나, filePath로 로컬 파일 경로를 지정합니다. MCP 클라이언트에서는 content+fileName 방식을 권장합니다.",
     {
@@ -452,7 +515,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 10: 드라이브 파일 다운로드
-  server.tool(
+  defineTool(server,
     "nworks_drive_download",
     "드라이브 파일을 다운로드합니다. User OAuth 인증 필요 (file.read scope). outputDir을 지정하면 로컬에 파일로 저장하고, 미지정 시 파일 내용을 직접 반환합니다 (텍스트는 text, 바이너리는 base64). 5MB 초과 파일은 반드시 outputDir를 지정해야 합니다.",
     {
@@ -518,7 +581,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 11: 메일 전송
-  server.tool(
+  defineTool(server,
     "nworks_mail_send",
     "NAVER WORKS 메일을 전송합니다. '메일 보내줘', '이메일 작성해줘' 등의 요청에 사용. 비동기 전송(성공 시 202). User OAuth 인증 필요 (mail scope)",
     {
@@ -554,7 +617,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 12: 메일 목록 조회
-  server.tool(
+  defineTool(server,
     "nworks_mail_list",
     "받은 메일 목록을 조회합니다. '메일 확인해줘', '받은편지함 보여줘', '안 읽은 메일 있어?' 등의 요청에 사용. User OAuth 인증 필요 (mail.read scope)",
     {
@@ -594,7 +657,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 13: 메일 상세 조회
-  server.tool(
+  defineTool(server,
     "nworks_mail_read",
     "특정 메일의 상세 내용(본문, 첨부파일 등)을 조회합니다. '이 메일 내용 보여줘' 등의 요청에 사용. mailId는 nworks_mail_list로 조회 가능. User OAuth 인증 필요 (mail.read scope)",
     {
@@ -635,7 +698,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 14: 할 일 목록 조회
-  server.tool(
+  defineTool(server,
     "nworks_task_list",
     "할 일(TODO) 목록을 조회합니다. '할 일 확인해줘', 'TODO 목록 보여줘', '남은 업무 뭐 있어?' 등의 요청에 사용. User OAuth 인증 필요 (task.read scope)",
     {
@@ -675,7 +738,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 15: 할 일 생성
-  server.tool(
+  defineTool(server,
     "nworks_task_create",
     "할 일(TODO)을 새로 만듭니다. '할 일 추가해줘', 'TODO 등록해줘' 등의 요청에 사용. 기본적으로 자기 자신에게 할당. User OAuth 인증 필요 (task + user.read scope)",
     {
@@ -709,7 +772,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 16: 할 일 수정
-  server.tool(
+  defineTool(server,
     "nworks_task_update",
     "할 일을 수정하거나 완료 처리합니다. '할 일 완료 처리해줘', '마감일 변경해줘' 등의 요청에 사용. taskId는 nworks_task_list로 조회 가능. User OAuth 인증 필요 (task + user.read scope)",
     {
@@ -758,7 +821,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 17: 할 일 삭제
-  server.tool(
+  defineTool(server,
     "nworks_task_delete",
     "할 일을 삭제합니다. taskId는 nworks_task_list로 조회 가능. User OAuth 인증 필요 (task + user.read scope)",
     {
@@ -780,7 +843,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 18: 게시판 목록
-  server.tool(
+  defineTool(server,
     "nworks_board_list",
     "NAVER WORKS 게시판 목록을 조회합니다. '게시판 뭐 있어?', '공지사항 게시판 찾아줘' 등의 요청에 사용. User OAuth 인증 필요 (board.read scope)",
     {
@@ -808,7 +871,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 19: 게시판 글 목록
-  server.tool(
+  defineTool(server,
     "nworks_board_posts",
     "게시판의 글 목록을 조회합니다. '게시판 글 보여줘', '공지사항 확인' 등의 요청에 사용. boardId는 nworks_board_list로 조회 가능. User OAuth 인증 필요 (board.read scope)",
     {
@@ -840,7 +903,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 20: 게시판 글 상세 조회
-  server.tool(
+  defineTool(server,
     "nworks_board_read",
     "게시판 글의 상세 내용을 조회합니다. postId는 nworks_board_posts로 조회 가능. User OAuth 인증 필요 (board.read scope)",
     {
@@ -873,7 +936,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 21: 게시판 글 작성
-  server.tool(
+  defineTool(server,
     "nworks_board_create",
     "게시판에 글을 작성합니다. '게시판에 글 올려줘', '공지 작성해줘' 등의 요청에 사용. boardId는 nworks_board_list로 조회 가능. User OAuth 인증 필요 (board scope)",
     {
@@ -905,43 +968,28 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 22: User OAuth 로그인
-  server.tool(
+  defineTool(server,
     "nworks_login_user",
-    "User OAuth 로그인을 시작합니다. 반환된 URL을 브라우저에서 열어 NAVER WORKS에 로그인하세요. 로그인 완료 후 자동으로 토큰이 저장됩니다. 중요: scope를 지정하지 마세요. 기본값이 모든 API(캘린더, 메일, 할일, 드라이브, 게시판)를 포함하므로 한 번 로그인으로 전체 기능을 사용할 수 있습니다. scope를 좁게 지정하면 다른 기능 사용 시 재로그인이 필요합니다.",
+    "User OAuth 로그인을 시작합니다. 반환된 URL을 브라우저에서 열어 NAVER WORKS에 로그인하세요. 로그인 완료 후 자동으로 토큰이 저장됩니다. 중요: preset을 지정하지 마세요. 기본값(default=all)이 모든 API(캘린더, 메일, 할일, 드라이브, 게시판)를 포함하므로 한 번 로그인으로 전체 기능을 사용할 수 있습니다. 읽기 전용으로 제한하려면 preset='readonly'를 지정하세요(이 경우 생성/수정/삭제 도구는 재로그인 필요).",
     {
+      preset: z
+        .enum(["readonly", "default", "all"])
+        .optional()
+        .describe("scope 프리셋. 기본 default(=all, 전체 기능). readonly는 읽기 전용."),
       scope: z
         .string()
         .optional()
-        .describe("지정하지 마세요 (기본값이 전체 scope 포함). 특수한 경우에만 사용"),
+        .describe("고급: 공백 구분 raw scope 직접 지정(preset 대신). 특수한 경우에만 사용"),
     },
-    async ({ scope }) => {
-      const DEFAULT_SCOPE = "calendar calendar.read file file.read mail mail.read task task.read user.read board board.read";
+    async ({ preset, scope }) => {
       try {
         const creds = await loadCredentials();
 
-        // scope 의존성 자동 확장
-        // - calendar 쓰기는 calendar.read 필요 (수정/삭제 시 기존 일정 조회)
-        // - task 쓰기는 user.read 필요 (/users/me 호출)
-        const SCOPE_DEPS: Record<string, string[]> = {
-          calendar: ["calendar.read"],
-          task: ["user.read"],
-          "task.read": ["user.read"],
-        };
-
-        const expandScopes = (scopes: string[]): string[] => {
-          const expanded = new Set(scopes);
-          for (const s of scopes) {
-            const deps = SCOPE_DEPS[s];
-            if (deps) deps.forEach((d) => expanded.add(d));
-          }
-          return [...expanded];
-        };
-
-        // 기존 토큰의 scope와 합치기
+        // 기존 토큰의 scope와 합쳐 재로그인 시 권한이 줄지 않게 한다.
         const existingToken = await loadUserToken();
         const existingScopes = existingToken?.scope?.split(" ").filter(Boolean) ?? [];
-        const requestedScopes = expandScopes((scope ?? DEFAULT_SCOPE).split(" ").filter(Boolean));
-        const mergedScopes = [...new Set([...existingScopes, ...requestedScopes])].join(" ");
+        const requestedScopes = resolveScopes(preset ?? scope);
+        const mergedScopes = mergeScopes(existingScopes, requestedScopes);
 
         const state = generateSecureState();
         const authorizeUrl = buildAuthorizeUrl(creds.clientId, mergedScopes, state);
@@ -988,7 +1036,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 23: 인증 상태
-  server.tool(
+  defineTool(server,
     "nworks_whoami",
     "현재 인증된 NAVER WORKS 계정 정보와 토큰 유효 상태를 확인합니다. 인증 문제 진단 시 먼저 호출",
     {},
@@ -1027,7 +1075,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 24: 로그아웃
-  server.tool(
+  defineTool(server,
     "nworks_logout",
     "저장된 NAVER WORKS 인증 정보와 토큰을 모두 삭제합니다",
     {},
@@ -1068,7 +1116,7 @@ OAuth Redirect URI: http://localhost:9876/callback`,
   );
 
   // Tool 25: 진단
-  server.tool(
+  defineTool(server,
     "nworks_doctor",
     "NAVER WORKS 연결 상태를 진단합니다. 인증 정보, 토큰, Private Key, API 연결을 점검합니다.",
     {},

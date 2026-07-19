@@ -21,14 +21,20 @@ export interface UserListResult {
 }
 
 export async function listUsers(
+  count = 100,
+  cursor?: string,
   profile = "default"
 ): Promise<UserListResult> {
+  const params = new URLSearchParams();
+  params.set("count", String(count));
+  if (cursor) params.set("cursor", cursor);
+
   const result = await request<{
     users: User[];
     responseMetaData?: { nextCursor?: string };
   }>({
     method: "GET",
-    path: "/users",
+    path: `/users?${params.toString()}`,
     profile,
   });
   return { users: result.users ?? [], responseMetaData: result.responseMetaData };
