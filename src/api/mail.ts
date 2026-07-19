@@ -1,5 +1,4 @@
-import { ApiError, AuthError } from "../utils/error.js";
-import { getValidUserToken } from "../auth/token-user.js";
+import { userFetch, handleUserApiError } from "./user-client.js";
 import { sanitizePathSegment } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
@@ -66,33 +65,6 @@ export interface MailDetail {
   }>;
 }
 
-async function authedFetch(
-  url: string,
-  init: RequestInit,
-  profile: string
-): Promise<Response> {
-  const token = await getValidUserToken(profile);
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  return fetch(url, { ...init, headers });
-}
-
-async function handleError(res: Response): Promise<never> {
-  if (res.status === 401) {
-    throw new AuthError("User token expired. Run `nworks login --user --scope mail` again.");
-  }
-  let code = "UNKNOWN";
-  let description = `HTTP ${res.status}`;
-  try {
-    const body = (await res.json()) as { code?: string; description?: string };
-    code = body.code ?? code;
-    description = body.description ?? description;
-  } catch {
-    // ignore
-  }
-  throw new ApiError(code, description, res.status);
-}
-
 export async function sendMail(opts: SendMailOptions): Promise<void> {
   const userId = opts.userId ?? "me";
   const profile = opts.profile ?? "default";
@@ -111,7 +83,7 @@ export async function sendMail(opts: SendMailOptions): Promise<void> {
   if (opts.bcc) body.bcc = opts.bcc;
   if (opts.contentType) body.contentType = opts.contentType;
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     {
       method: "POST",
@@ -123,7 +95,7 @@ export async function sendMail(opts: SendMailOptions): Promise<void> {
 
   if (res.status === 202) return;
 
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
 }
 
 export async function listMails(
@@ -145,9 +117,9 @@ export async function listMails(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
+  const res = await userFetch(url, { method: "GET" }, profile);
 
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
 
   const data = (await res.json()) as MailListResult;
   return {
@@ -170,9 +142,9 @@ export async function readMail(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
+  const res = await userFetch(url, { method: "GET" }, profile);
 
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
 
   return (await res.json()) as MailDetail;
 }

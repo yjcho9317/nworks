@@ -1,5 +1,4 @@
-import { ApiError, AuthError } from "../utils/error.js";
-import { getValidUserToken } from "../auth/token-user.js";
+import { userFetch, handleUserApiError } from "./user-client.js";
 import { sanitizePathSegment } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
@@ -45,33 +44,6 @@ export interface CreatePostOptions {
   profile?: string;
 }
 
-async function authedFetch(
-  url: string,
-  init: RequestInit,
-  profile: string
-): Promise<Response> {
-  const token = await getValidUserToken(profile);
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  return fetch(url, { ...init, headers });
-}
-
-async function handleError(res: Response): Promise<never> {
-  if (res.status === 401) {
-    throw new AuthError("User token expired. Run `nworks login --user --scope board` again.");
-  }
-  let code = "UNKNOWN";
-  let description = `HTTP ${res.status}`;
-  try {
-    const body = (await res.json()) as { code?: string; description?: string };
-    code = body.code ?? code;
-    description = body.description ?? description;
-  } catch {
-    // ignore
-  }
-  throw new ApiError(code, description, res.status);
-}
-
 /** int64 ID 필드의 정밀도 손실 방지를 위해 문자열로 변환 후 파싱 */
 function safeParseJson<T>(text: string): T {
   const safe = text.replace(
@@ -96,8 +68,8 @@ export async function listBoards(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   const text = await res.text();
   if (process.env["NWORKS_VERBOSE"] === "1") {
@@ -124,8 +96,8 @@ export async function listPosts(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   const text = await res.text();
   if (process.env["NWORKS_VERBOSE"] === "1") {
@@ -147,8 +119,8 @@ export async function readPost(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   const text = await res.text();
   if (process.env["NWORKS_VERBOSE"] === "1") {
@@ -175,7 +147,7 @@ export async function createPost(opts: CreatePostOptions): Promise<Post> {
     console.error(`[nworks] Body: ${JSON.stringify(body).length} bytes`);
   }
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     {
       method: "POST",
@@ -192,5 +164,5 @@ export async function createPost(opts: CreatePostOptions): Promise<Post> {
     }
     return safeParseJson<Post>(text);
   }
-  return handleError(res);
+  return handleUserApiError(res);
 }

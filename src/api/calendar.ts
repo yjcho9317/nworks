@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { ApiError, AuthError } from "../utils/error.js";
-import { getValidUserToken } from "../auth/token-user.js";
+import { ApiError } from "../utils/error.js";
+import { userFetch, handleUserApiError } from "./user-client.js";
 import { sanitizePathSegment } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
@@ -58,33 +58,6 @@ export interface UpdateEventOptions {
   profile?: string;
 }
 
-async function authedFetch(
-  url: string,
-  init: RequestInit,
-  profile: string
-): Promise<Response> {
-  const token = await getValidUserToken(profile);
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  return fetch(url, { ...init, headers });
-}
-
-async function handleError(res: Response): Promise<never> {
-  if (res.status === 401) {
-    throw new AuthError("User token expired. Run `nworks login --user --scope calendar` again.");
-  }
-  let code = "UNKNOWN";
-  let description = `HTTP ${res.status}`;
-  try {
-    const body = (await res.json()) as { code?: string; description?: string };
-    code = body.code ?? code;
-    description = body.description ?? description;
-  } catch {
-    // ignore
-  }
-  throw new ApiError(code, description, res.status);
-}
-
 function generateEventId(): string {
   return `event-${randomUUID()}`;
 }
@@ -113,8 +86,8 @@ export async function listEvents(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   const data = (await res.json()) as EventListResult;
   return { events: data.events ?? [] };
@@ -161,7 +134,7 @@ export async function createEvent(
     console.error(`[nworks] Body: ${JSON.stringify(body).length} bytes`);
   }
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     {
       method: "POST",
@@ -174,7 +147,7 @@ export async function createEvent(
   if (res.status === 201) {
     return (await res.json()) as { eventComponents: CalendarEvent[]; organizerCalendarId?: string };
   }
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
   return (await res.json()) as { eventComponents: CalendarEvent[]; organizerCalendarId?: string };
 }
 
@@ -189,8 +162,8 @@ export async function getEvent(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   const data = (await res.json()) as { eventComponents: CalendarEvent[] };
   const event = data.eventComponents[0];
@@ -247,7 +220,7 @@ export async function updateEvent(
     console.error(`[nworks] Body: ${JSON.stringify(body).length} bytes`);
   }
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     {
       method: "PUT",
@@ -257,7 +230,7 @@ export async function updateEvent(
     profile
   );
 
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
 }
 
 export async function deleteEvent(
@@ -275,8 +248,8 @@ export async function deleteEvent(
     console.error(`[nworks] DELETE ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "DELETE" }, profile);
+  const res = await userFetch(url, { method: "DELETE" }, profile);
 
   if (res.status === 204) return;
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
 }

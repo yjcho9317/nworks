@@ -1,5 +1,4 @@
-import { ApiError, AuthError } from "../utils/error.js";
-import { getValidUserToken } from "../auth/token-user.js";
+import { userFetch, handleUserApiError } from "./user-client.js";
 import { sanitizePathSegment } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
@@ -53,33 +52,6 @@ export interface UpdateTaskOptions {
   profile?: string;
 }
 
-async function authedFetch(
-  url: string,
-  init: RequestInit,
-  profile: string
-): Promise<Response> {
-  const token = await getValidUserToken(profile);
-  const headers = new Headers(init.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  return fetch(url, { ...init, headers });
-}
-
-async function handleError(res: Response): Promise<never> {
-  if (res.status === 401) {
-    throw new AuthError("User token expired. Run `nworks login --user --scope task` again.");
-  }
-  let code = "UNKNOWN";
-  let description = `HTTP ${res.status}`;
-  try {
-    const body = (await res.json()) as { code?: string; description?: string };
-    code = body.code ?? code;
-    description = body.description ?? description;
-  } catch {
-    // ignore
-  }
-  throw new ApiError(code, description, res.status);
-}
-
 async function resolveUserId(
   userId: string,
   profile: string
@@ -87,8 +59,8 @@ async function resolveUserId(
   if (userId !== "me") return userId;
 
   const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}`;
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   const data = (await res.json()) as { userId: string };
   if (process.env["NWORKS_VERBOSE"] === "1") {
@@ -107,8 +79,8 @@ export async function listCategories(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   const data = (await res.json()) as { taskCategories: TaskCategory[] };
   return data.taskCategories ?? [];
@@ -134,8 +106,8 @@ export async function listTasks(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   const data = (await res.json()) as TaskListResult;
   return { tasks: data.tasks ?? [], responseMetaData: data.responseMetaData };
@@ -151,8 +123,8 @@ export async function getTask(
     console.error(`[nworks] GET ${url}`);
   }
 
-  const res = await authedFetch(url, { method: "GET" }, profile);
-  if (!res.ok) return handleError(res);
+  const res = await userFetch(url, { method: "GET" }, profile);
+  if (!res.ok) return handleUserApiError(res);
 
   return (await res.json()) as Task;
 }
@@ -182,7 +154,7 @@ export async function createTask(opts: CreateTaskOptions): Promise<Task> {
     console.error(`[nworks] Body: ${JSON.stringify(body).length} bytes`);
   }
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     {
       method: "POST",
@@ -195,7 +167,7 @@ export async function createTask(opts: CreateTaskOptions): Promise<Task> {
   if (res.status === 201) {
     return (await res.json()) as Task;
   }
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
   return (await res.json()) as Task;
 }
 
@@ -213,7 +185,7 @@ export async function updateTask(opts: UpdateTaskOptions): Promise<Task> {
     console.error(`[nworks] PATCH ${url}`);
   }
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     {
       method: "PATCH",
@@ -223,7 +195,7 @@ export async function updateTask(opts: UpdateTaskOptions): Promise<Task> {
     profile
   );
 
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
   return (await res.json()) as Task;
 }
 
@@ -237,14 +209,14 @@ export async function completeTask(
     console.error(`[nworks] POST ${url}`);
   }
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     { method: "POST" },
     profile
   );
 
   if (res.status === 204) return;
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
 }
 
 export async function incompleteTask(
@@ -257,14 +229,14 @@ export async function incompleteTask(
     console.error(`[nworks] POST ${url}`);
   }
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     { method: "POST" },
     profile
   );
 
   if (res.status === 204) return;
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
 }
 
 export async function deleteTask(
@@ -277,12 +249,12 @@ export async function deleteTask(
     console.error(`[nworks] DELETE ${url}`);
   }
 
-  const res = await authedFetch(
+  const res = await userFetch(
     url,
     { method: "DELETE" },
     profile
   );
 
   if (res.status === 204) return;
-  if (!res.ok) return handleError(res);
+  if (!res.ok) return handleUserApiError(res);
 }
