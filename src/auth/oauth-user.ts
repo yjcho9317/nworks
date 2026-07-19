@@ -1,5 +1,4 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { randomBytes } from "node:crypto";
 import { URL } from "node:url";
 import { AuthError } from "../utils/error.js";
 import { loadCredentials } from "./config.js";
@@ -29,11 +28,11 @@ export function buildAuthorizeUrl(clientId: string, scope: string, state: string
 
 export async function startUserOAuthFlow(
   _scope: string,
-  profile = "default",
-  expectedState?: string
+  profile: string,
+  expectedState: string
 ): Promise<UserTokenResult> {
   const creds = await loadCredentials(profile);
-  const code = await waitForAuthCode(expectedState ?? randomBytes(16).toString("hex"));
+  const code = await waitForAuthCode(expectedState);
 
   return exchangeCodeForToken(code, creds.clientId, creds.clientSecret);
 }
@@ -59,11 +58,11 @@ function waitForAuthCode(expectedState: string): Promise<string> {
       const state = url.searchParams.get("state");
 
       if (state !== expectedState) {
+        // state가 맞지 않는 요청(오배송·프리페치·탐색 시도)은 거부하되 서버는 계속 리스닝한다.
+        // 한 번의 잘못된 요청으로 로그인 세션 전체를 종료시키지 않기 위함(로컬 DoS 방지).
+        // 정당한 콜백이 오거나 타임아웃될 때까지 대기한다.
         res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
-        res.end("<h2>보안 오류</h2><p>state 불일치. 다시 시도하세요.</p>");
-        clearTimeout(timeout);
-        server.close();
-        reject(new AuthError("OAuth state mismatch — possible CSRF attack."));
+        res.end("<h2>보안 오류</h2><p>state 불일치. 브라우저에서 로그인을 다시 진행하세요.</p>");
         return;
       }
 
@@ -103,6 +102,21 @@ function waitForAuthCode(expectedState: string): Promise<string> {
   });
 }
 
+// 토큰 엔드포인트 에러 응답에서 표준 OAuth 필드(error/error_description)만 추출한다.
+// 응답 본문 전체를 그대로 노출하면 예기치 않은 민감 정보가 로그·MCP 컨텍스트로 샐 수 있다.
+async function safeErrorSummary(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const body = JSON.parse(text) as { error?: string; error_description?: string };
+    if (body.error || body.error_description) {
+      return [body.error, body.error_description].filter(Boolean).join(": ");
+    }
+  } catch {
+    // JSON이 아니면 아래에서 잘라서 반환
+  }
+  return text.length > 200 ? text.slice(0, 200) + "..." : text;
+}
+
 async function exchangeCodeForToken(
   code: string,
   clientId: string,
@@ -123,9 +137,7 @@ async function exchangeCodeForToken(
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    const truncated = text.length > 200 ? text.substring(0, 200) + "..." : text;
-    throw new AuthError(`Token exchange failed (${res.status}): ${truncated}`);
+    throw new AuthError(`Token exchange failed (${res.status}): ${await safeErrorSummary(res)}`);
   }
 
   const data = (await res.json()) as {
@@ -163,9 +175,7 @@ export async function refreshUserToken(
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    const truncated = text.length > 200 ? text.substring(0, 200) + "..." : text;
-    throw new AuthError(`Token refresh failed (${res.status}): ${truncated}`);
+    throw new AuthError(`Token refresh failed (${res.status}): ${await safeErrorSummary(res)}`);
   }
 
   const data = (await res.json()) as {
