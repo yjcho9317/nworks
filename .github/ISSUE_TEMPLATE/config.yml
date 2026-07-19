@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/yjcho9317/nworks/discussions
+    about: Ask usage questions or share ideas here.
+  - name: Report a security vulnerability
+    url: https://github.com/yjcho9317/nworks/security/advisories/new
+    about: Please report vulnerabilities privately, not as public issues.

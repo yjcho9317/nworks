@@ -1,0 +1,53 @@
+name: Bug report
+description: Something in nworks does not work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please do **not** paste
+        Client Secrets, private keys, or access tokens here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong?
+      placeholder: Running `nworks ...` returned ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: nworks version
+      description: Output of `nworks --version`
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: How are you using nworks?
+      options:
+        - CLI (terminal)
+        - MCP server (Claude Desktop / Cursor / other)
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: OS and Node.js version
+      placeholder: "Windows 11, Node 20.11"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Relevant output. Re-run with `NWORKS_VERBOSE=1` for more detail. Redact any secrets.
+      render: shell

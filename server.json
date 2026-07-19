@@ -1,0 +1,59 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.json",
+  "name": "io.github.yjcho9317/nworks",
+  "description": "CLI and MCP server for NAVER WORKS / LINE WORKS — messages, calendar, drive, mail, tasks, and boards for AI agents (Claude, Cursor).",
+  "repository": {
+    "url": "https://github.com/yjcho9317/nworks",
+    "source": "github"
+  },
+  "version": "1.3.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "nworks",
+      "version": "1.3.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "NWORKS_CLIENT_SECRET",
+          "description": "OAuth Client Secret issued in the LINE WORKS Developer Console.",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "NWORKS_CLIENT_ID",
+          "description": "OAuth Client ID. Optional if already stored via `nworks login`.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "NWORKS_SERVICE_ACCOUNT",
+          "description": "Service Account ID for bot messaging (e.g. xxxx.serviceaccount@domain).",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "NWORKS_PRIVATE_KEY_PATH",
+          "description": "Path to the Service Account private key (.key) used to sign the JWT.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "NWORKS_BOT_ID",
+          "description": "Bot ID required to send messages.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "NWORKS_DOMAIN_ID",
+          "description": "Domain ID (optional).",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
