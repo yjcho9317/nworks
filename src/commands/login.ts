@@ -22,6 +22,21 @@ async function prompt(question: string): Promise<string> {
   }
 }
 
+// 시크릿 입력이 화면·스크롤백에 남지 않도록 에코를 끈 프롬프트.
+// 질문은 직접 출력하고 readline의 출력(입력 에코 포함)은 전부 무음 처리한다.
+async function promptSecret(question: string): Promise<string> {
+  process.stdout.write(question);
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = () => {};
+  try {
+    const answer = await rl.question("");
+    process.stdout.write("\n"); // Enter 에코도 무음이므로 줄바꿈을 수동 출력
+    return answer.trim();
+  } finally {
+    rl.close();
+  }
+}
+
 export const loginCommand = new Command("login")
   .description("Authenticate with NAVER WORKS")
   .option("--user", "User OAuth login (opens browser)")
@@ -68,7 +83,7 @@ async function handleUserLogin(
 
   if (process.stdin.isTTY) {
     if (!clientId) clientId = await prompt("Client ID: ");
-    if (!clientSecret) clientSecret = await prompt("Client Secret: ");
+    if (!clientSecret) clientSecret = await promptSecret("Client Secret: ");
   }
 
   if (!clientId || !clientSecret) {
@@ -147,7 +162,7 @@ async function handleServiceAccountLogin(
 
   if (process.stdin.isTTY) {
     if (!clientId) clientId = await prompt("Client ID: ");
-    if (!clientSecret) clientSecret = await prompt("Client Secret: ");
+    if (!clientSecret) clientSecret = await promptSecret("Client Secret: ");
     if (!serviceAccount)
       serviceAccount = await prompt("Service Account: ");
     if (!privateKeyPath)
