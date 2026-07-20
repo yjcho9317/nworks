@@ -16,11 +16,10 @@ import { doctorCommand } from "./commands/doctor.js";
 const program = new Command()
   .name("nworks")
   .description("NAVER WORKS CLI — built for humans and AI agents")
-  .version(VERSION)
-  .option("--json", "Always output JSON")
-  .option("-v, --verbose", "Debug logging")
-  .option("--dry-run", "Print request without calling API")
-  .option("-p, --profile <name>", "Profile name", "default");
+  .version(VERSION);
+// 전역 옵션을 두지 않는다. --json/--profile은 각 서브커맨드가 자체 정의하며,
+// 전역과 같은 이름을 겹쳐 두면 commander가 서브커맨드 값을 무시하고 전역 기본값을 쓴다.
+// (--verbose/--dry-run은 실동작이 없던 죽은 옵션이라 함께 제거)
 
 program.addCommand(loginCommand);
 program.addCommand(logoutCommand);
