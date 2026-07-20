@@ -26,7 +26,7 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
     creds = await loadCredentials(profile);
     results.push({ check: "credentials", status: "OK", detail: `clientId: ${mask(creds.clientId)}` });
   } catch {
-    results.push({ check: "credentials", status: "FAIL", detail: "인증 정보 없음. CLI: `nworks login --user` / MCP: nworks_setup tool 사용 (환경변수 NWORKS_CLIENT_SECRET 필요)" });
+    results.push({ check: "credentials", status: "FAIL", detail: "No credentials found. CLI: run `nworks login --user`. MCP: use the nworks_setup tool (env NWORKS_CLIENT_SECRET required)." });
     return results;
   }
 
@@ -34,7 +34,7 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
   if (hasServiceAccountCreds(creds)) {
     results.push({ check: "serviceAccount", status: "OK", detail: creds.serviceAccount });
   } else {
-    results.push({ check: "serviceAccount", status: "SKIP", detail: "미설정 (봇 메시지 사용 시 필요)" });
+    results.push({ check: "serviceAccount", status: "SKIP", detail: "Not set (required for bot messaging)" });
   }
 
   // 3. Private Key file
@@ -44,13 +44,13 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
         await readFile(creds.privateKeyPath, "utf-8");
         results.push({ check: "privateKey", status: "OK", detail: creds.privateKeyPath });
       } catch {
-        results.push({ check: "privateKey", status: "FAIL", detail: `읽기 불가: ${creds.privateKeyPath}` });
+        results.push({ check: "privateKey", status: "FAIL", detail: `Cannot read: ${creds.privateKeyPath}` });
       }
     } else {
-      results.push({ check: "privateKey", status: "FAIL", detail: `파일 없음: ${creds.privateKeyPath}` });
+      results.push({ check: "privateKey", status: "FAIL", detail: `File not found: ${creds.privateKeyPath}` });
     }
   } else {
-    results.push({ check: "privateKey", status: "SKIP", detail: "미설정" });
+    results.push({ check: "privateKey", status: "SKIP", detail: "Not set" });
   }
 
   // 3-1. Private Key 위치 점검: 프로젝트/리포 디렉토리 안의 키는 에디터·AI 도구·npm pack에 노출될 위험.
@@ -64,7 +64,7 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
       results.push({
         check: "keyLocation",
         status: "WARN",
-        detail: "Private Key가 프로젝트 디렉토리 안에 있습니다. 에디터 플러그인·AI 도구·npm pack 노출 위험 — 홈 디렉토리 등 외부로 옮기고 경로를 갱신하세요.",
+        detail: "Private key is inside a project directory. Risk of exposure via editor plugins, AI tools, or `npm pack` — move it outside (e.g. your home directory) and update the path.",
       });
     }
   }
@@ -73,7 +73,7 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
   if (creds.botId) {
     results.push({ check: "botId", status: "OK", detail: creds.botId });
   } else {
-    results.push({ check: "botId", status: "SKIP", detail: "미설정 (메시지 전송 시 필요)" });
+    results.push({ check: "botId", status: "SKIP", detail: "Not set (required to send messages)" });
   }
 
   // 5. Service Account Token
@@ -84,11 +84,11 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
       check: "serviceToken",
       status: valid ? "OK" : "EXPIRED",
       detail: valid
-        ? `만료: ${new Date(token.expiresAt * 1000).toISOString()}`
-        : `만료됨: ${new Date(token.expiresAt * 1000).toISOString()}`,
+        ? `expires: ${new Date(token.expiresAt * 1000).toISOString()}`
+        : `expired: ${new Date(token.expiresAt * 1000).toISOString()}`,
     });
   } else {
-    results.push({ check: "serviceToken", status: "SKIP", detail: "토큰 없음" });
+    results.push({ check: "serviceToken", status: "SKIP", detail: "No token" });
   }
 
   // 6. User OAuth Token
@@ -99,11 +99,11 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
       check: "userOAuth",
       status: valid ? "OK" : "EXPIRED",
       detail: valid
-        ? `scope: ${userToken.scope} | 만료: ${new Date(userToken.expiresAt * 1000).toISOString()}`
-        : `만료됨 | scope: ${userToken.scope}`,
+        ? `scope: ${userToken.scope} | expires: ${new Date(userToken.expiresAt * 1000).toISOString()}`
+        : `expired | scope: ${userToken.scope}`,
     });
   } else {
-    results.push({ check: "userOAuth", status: "SKIP", detail: "토큰 없음. `nworks login --user` 필요" });
+    results.push({ check: "userOAuth", status: "SKIP", detail: "No token. Run `nworks login --user`." });
   }
 
   // 7. API connectivity test
@@ -113,12 +113,12 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
         headers: { Authorization: `Bearer ${token.accessToken}` },
       });
       if (res.ok) {
-        results.push({ check: "apiConnection", status: "OK", detail: "NAVER WORKS API 연결 성공" });
+        results.push({ check: "apiConnection", status: "OK", detail: "Connected to NAVER WORKS API" });
       } else {
         results.push({ check: "apiConnection", status: "FAIL", detail: `HTTP ${res.status}` });
       }
     } catch (e) {
-      results.push({ check: "apiConnection", status: "FAIL", detail: `연결 실패: ${(e as Error).message}` });
+      results.push({ check: "apiConnection", status: "FAIL", detail: `Connection failed: ${(e as Error).message}` });
     }
   } else if (userToken && userToken.expiresAt > Date.now() / 1000) {
     try {
@@ -126,15 +126,15 @@ async function runChecks(profile: string): Promise<CheckResult[]> {
         headers: { Authorization: `Bearer ${userToken.accessToken}` },
       });
       if (res.ok) {
-        results.push({ check: "apiConnection", status: "OK", detail: "NAVER WORKS API 연결 성공" });
+        results.push({ check: "apiConnection", status: "OK", detail: "Connected to NAVER WORKS API" });
       } else {
         results.push({ check: "apiConnection", status: "FAIL", detail: `HTTP ${res.status}` });
       }
     } catch (e) {
-      results.push({ check: "apiConnection", status: "FAIL", detail: `연결 실패: ${(e as Error).message}` });
+      results.push({ check: "apiConnection", status: "FAIL", detail: `Connection failed: ${(e as Error).message}` });
     }
   } else {
-    results.push({ check: "apiConnection", status: "SKIP", detail: "유효한 토큰 없음 — API 테스트 건너뜀" });
+    results.push({ check: "apiConnection", status: "SKIP", detail: "No valid token — skipping API test" });
   }
 
   return results;

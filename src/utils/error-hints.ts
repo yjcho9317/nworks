@@ -27,12 +27,13 @@ export const REQUIRED_SCOPES: Record<string, string> = {
   "board.create": "board",
 };
 
+// CLI 직접 출력은 영어를 기본으로 한다(국제 사용자·OSS 관행). MCP 경로는 LLM이 사용자 언어로 번역하므로 아래 MCP 힌트는 그대로 둔다.
 const ERROR_HINTS_CLI: Record<string, string> = {
-  FORBIDDEN: "권한이 부족합니다. Developer Console에서 OAuth Scope를 확인하세요.",
-  ACCESS_DENIED: "접근이 거부됐습니다. Admin에서 Bot을 추가했는지 확인하세요.",
+  FORBIDDEN: "Insufficient permission. Check the OAuth scopes in the Developer Console.",
+  ACCESS_DENIED: "Access denied. Make sure the Bot is added in the Admin console.",
   SERVICE_ACCOUNT_NOT_ALLOWED:
-    "서비스 계정으로는 이 API를 사용할 수 없습니다. `nworks login --user`로 User OAuth 로그인하세요.",
-  UNAUTHORIZED: "인증이 만료됐습니다. `nworks login`으로 다시 로그인하세요.",
+    "This API is not available with a Service Account. Log in with User OAuth via `nworks login --user`.",
+  UNAUTHORIZED: "Authentication expired. Log in again with `nworks login`.",
 };
 
 const ERROR_HINTS_MCP: Record<string, string> = {
@@ -86,7 +87,7 @@ function buildScopeHint(area: string, mode: "cli" | "mcp"): string {
   if (!scope) return "";
   const scopes = scope.split(" ").join(", ");
   if (mode === "cli") {
-    return `\n  → 이 명령어는 ${scopes} scope가 필요합니다. \`nworks login --user --scope "${scope}"\`를 실행하세요.`;
+    return `\n  → This command requires the ${scopes} scope(s). Run \`nworks login --user --scope "${scope}"\`.`;
   }
   return `\n  → 이 API는 ${scopes} scope가 필요합니다. nworks_login_user tool로 로그인하세요 (scope를 지정하지 않으면 전체 권한이 자동 포함됩니다).`;
 }
