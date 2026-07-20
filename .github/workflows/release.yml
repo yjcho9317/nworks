@@ -11,7 +11,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # GitHub Release 생성 및 .mcpb 첨부에 필요
       id-token: write # npm provenance 서명에 필요
 
     steps:
@@ -42,3 +42,13 @@ jobs:
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # 비개발자용 원클릭 설치 번들(.mcpb)을 프로덕션 의존성만으로 패킹해 릴리스에 첨부한다.
+      - name: Build and attach MCPB bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          npm prune --omit=dev
+          npx --yes @anthropic-ai/mcpb pack . "nworks-${GITHUB_REF_NAME}.mcpb"
+          gh release create "$GITHUB_REF_NAME" "nworks-${GITHUB_REF_NAME}.mcpb" --title "$GITHUB_REF_NAME" --generate-notes \
+            || gh release upload "$GITHUB_REF_NAME" "nworks-${GITHUB_REF_NAME}.mcpb" --clobber

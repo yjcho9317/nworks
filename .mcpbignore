@@ -1,0 +1,21 @@
+# MCPB 번들에서 제외할 항목. node_modules는 포함한다(dist가 SDK를 번들하지 않으므로
+# 런타임에 필요). CI에서 `npm prune --omit=dev`로 프로덕션 의존성만 남긴 뒤 pack한다.
+src/
+tests/
+.github/
+docs/
+scratchpad/
+*.map
+*.ts
+!*.d.ts
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+package-lock.json
+pnpm-lock.yaml
+server.json
+README.ko.md
+README.ja.md
+.mcpbignore
+.gitignore
+.git/
