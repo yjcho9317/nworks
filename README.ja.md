@@ -16,6 +16,8 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 LINE WORKS (NAVER WORKS) 初のMCPサーバー。
 メッセージ、カレンダー、ドライブ、メール、タスク、掲示板 — 26ツール対応のCLI + MCPサーバーです。
 
+nworksは、**外部**のAIエージェント（Claude、Cursor）やターミナルからLINE WORKSを*操作*するためのレイヤーです。LINE WORKS自身の社内向けAI（AiStudio、WORKS AI）とは競合せず、補完関係にあります。非公式・コミュニティ運営であり、LINE WORKS / NAVER WORKSとの提携関係はありません。
+
 ## クイックスタート
 
 ```bash
@@ -23,6 +25,8 @@ npm install -g nworks
 nworks login --user
 nworks calendar list
 ```
+
+> **初めての方へ:** まずDeveloper Consoleアプリ（Client ID/Secret）、redirect URLの登録、そしてボットメッセージの場合は管理者の承認が必要です。[オンボーディング & 管理者セットアップガイド](ONBOARDING.md)を参照してください。
 
 ### AIエージェントの使用例
 
@@ -340,10 +344,13 @@ done
 | `board` | 掲示板読み書き | User OAuth | `board list/posts/read/create` |
 | `board.read` | 掲示板読み取り専用 | User OAuth | `board list/posts/read` |
 
-> **ヒント**: scopeを変更した後はトークンを再発行してください。
+> **プリセット**を使うとscopeを個別に列挙するより簡単です:
 > ```bash
-> nworks logout && nworks login --user --scope "..."
+> nworks login --user --preset all       # デフォルト: 一度のログインで全機能
+> nworks login --user --preset readonly  # 読み取り専用scope
 > ```
+> `default`は`all`のエイリアスです。メッセージ送信はService Account（ボット）を使うため、プリセットに関係なく動作します。
+> 再ログインしても権限は狭まりません — 新たに要求したscopeが既存トークンとマージされるため、プリセットの切り替えは権限を追加するだけです。個別に選ぶ場合は`--scope "calendar calendar.read"`を指定してください。
 
 ---
 

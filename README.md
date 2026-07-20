@@ -16,6 +16,8 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 Full-featured MCP server for LINE WORKS (NAVER WORKS).
 CLI + MCP server — 26 tools covering messages, calendar, drive, mail, tasks, and boards.
 
+nworks lets **external** AI agents (Claude, Cursor) and your terminal *operate* LINE WORKS from the outside — complementary to LINE WORKS' own in-product AI (AiStudio, WORKS AI), not a replacement. Unofficial and community-maintained; not affiliated with LINE WORKS / NAVER WORKS.
+
 ## Quickstart
 
 ```bash
@@ -23,6 +25,8 @@ npm install -g nworks
 nworks login --user
 nworks calendar list
 ```
+
+> **First time?** You first need a Developer Console app (Client ID/Secret), a registered redirect URL, and — for bot messaging — admin approval. See the [Onboarding & Admin Setup guide](ONBOARDING.md).
 
 ### AI Agents Actually Use It Like This
 
@@ -340,10 +344,13 @@ Add the required scopes in the [LINE WORKS Developer Console](https://dev.worksm
 | `board` | Boards read/write | User OAuth | `board list/posts/read/create` |
 | `board.read` | Boards read-only | User OAuth | `board list/posts/read` |
 
-> **Tip**: After changing scopes, reissue your token:
+> **Presets** are simpler than listing scopes:
 > ```bash
-> nworks logout && nworks login --user --scope "..."
+> nworks login --user --preset all       # default: full functionality in one login
+> nworks login --user --preset readonly  # read-only scopes
 > ```
+> `default` is an alias of `all`. Message sending uses the Service Account (bot), so it works regardless of preset.
+> Re-login never narrows access — newly requested scopes are merged with the existing token, so switching presets only adds capability. For a hand-picked set use `--scope "calendar calendar.read"`.
 
 ---
 
