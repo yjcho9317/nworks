@@ -148,3 +148,31 @@ export async function readMail(
 
   return (await res.json()) as MailDetail;
 }
+
+export interface AttachmentDownloadResult {
+  buffer: Buffer;
+  filename: string;
+}
+
+export async function downloadAttachment(
+  mailId: number,
+  attachmentId: number,
+  userId = "me",
+  profile = "default"
+): Promise<AttachmentDownloadResult> {
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/mail/${sanitizePathSegment(
+    String(mailId)
+  )}/attachments/${sanitizePathSegment(String(attachmentId))}`;
+
+  if (process.env["NWORKS_VERBOSE"] === "1") {
+    console.error(`[nworks] GET ${url}`);
+  }
+
+  const res = await userFetch(url, { method: "GET" }, profile);
+
+  if (!res.ok) return handleUserApiError(res);
+
+  // 첨부파일 API는 바이너리 스트림이 아니라 base64 문자열을 JSON으로 돌려준다.
+  const data = (await res.json()) as { data: string; filename: string };
+  return { buffer: Buffer.from(data.data, "base64"), filename: data.filename };
+}
