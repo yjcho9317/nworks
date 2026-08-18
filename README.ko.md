@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 NAVER WORKS (LINE WORKS) 최초의 MCP 서버.
-메시지, 캘린더, 드라이브, 메일, 할 일, 게시판 — 26개 도구를 CLI와 AI 에이전트에서 쓸 수 있습니다.
+메시지, 캘린더, 드라이브, 메일, 할 일, 게시판 — 29개 도구를 CLI와 AI 에이전트에서 쓸 수 있습니다.
 
 nworks는 **외부** AI 에이전트(Claude, Cursor)와 터미널에서 LINE WORKS를 *다루기* 위한 도구입니다. LINE WORKS 자체의 사내용 AI(AiStudio, WORKS AI)와 겹치지 않고 상호 보완합니다. 비공식·커뮤니티 프로젝트이며 LINE WORKS / NAVER WORKS와 제휴 관계가 없습니다.
 
@@ -104,11 +104,11 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 }
 ```
 
-로그인 한 번이면 26개 도구 모두 사용 가능. 별도 env 설정 불필요.
+로그인 한 번이면 29개 도구 모두 사용 가능. 별도 env 설정 불필요.
 
 > **MCP에서 AI 에이전트가 직접 설정하기**: CLI 로그인 없이도 AI 에이전트가 `nworks_setup` → `nworks_login_user` 순서로 호출하면 브라우저 로그인만으로 전체 기능을 사용할 수 있습니다. Client Secret과 Private Key 경로는 MCP 설정의 `env` 필드 또는 시스템 환경변수로 미리 설정해야 합니다.
 
-### MCP 도구 목록 (26개)
+### MCP 도구 목록 (29개)
 
 | 도구 | 설명 | 필요 인증 |
 |------|------|----------|
@@ -131,6 +131,9 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 | `nworks_drive_list` | 드라이브 파일/폴더 목록 | User OAuth (file.read) |
 | `nworks_drive_upload` | 드라이브 파일 업로드 | User OAuth (file) |
 | `nworks_drive_download` | 드라이브 파일 다운로드 (5MB 초과 시 로컬 저장) | User OAuth (file.read) |
+| `nworks_sharedrive_list` | 공유 드라이브 목록 조회 | User OAuth (file.read) |
+| `nworks_sharedrive_files` | 공유 드라이브 파일/폴더 목록 조회 | User OAuth (file.read) |
+| `nworks_sharedrive_download` | 공유 드라이브 파일 다운로드 (5MB 초과 시 로컬 저장) | User OAuth (file.read) |
 | **메일** | | |
 | `nworks_mail_send` | 메일 전송 | User OAuth (mail) |
 | `nworks_mail_list` | 메일 목록 조회 | User OAuth (mail.read) |
@@ -244,6 +247,18 @@ nworks drive download --file-id <fileId>
 
 # 다운로드 경로/파일명 지정
 nworks drive download --file-id <fileId> --out ./downloads --name report.pdf
+
+# 공유 드라이브 목록
+nworks drive sharedrive-list
+
+# 공유 드라이브 파일 목록 (루트)
+nworks drive sharedrive-files --sharedrive <sharedriveId>
+
+# 공유 드라이브 폴더 내 파일 목록
+nworks drive sharedrive-files --sharedrive <sharedriveId> --folder <fileId>
+
+# 공유 드라이브 파일 다운로드
+nworks drive sharedrive-download --sharedrive <sharedriveId> --file-id <fileId>
 ```
 
 ### 메일 (User OAuth)
