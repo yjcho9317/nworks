@@ -10,6 +10,7 @@ import { driveCommand } from "./commands/drive.js";
 import { mailCommand } from "./commands/mail.js";
 import { taskCommand } from "./commands/task.js";
 import { boardCommand } from "./commands/board.js";
+import { contactCommand } from "./commands/contact.js";
 import { mcpCommand } from "./commands/mcp-cmd.js";
 import { doctorCommand } from "./commands/doctor.js";
 
@@ -31,6 +32,7 @@ program.addCommand(driveCommand);
 program.addCommand(mailCommand);
 program.addCommand(taskCommand);
 program.addCommand(boardCommand);
+program.addCommand(contactCommand);
 program.addCommand(mcpCommand);
 program.addCommand(doctorCommand);
 

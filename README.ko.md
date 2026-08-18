@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 NAVER WORKS (LINE WORKS) 최초의 MCP 서버.
-메시지, 캘린더, 드라이브, 메일, 할 일, 게시판 — 26개 도구를 CLI와 AI 에이전트에서 쓸 수 있습니다.
+메시지, 캘린더, 드라이브, 메일, 할 일, 게시판 — 32개 도구를 CLI와 AI 에이전트에서 쓸 수 있습니다.
 
 nworks는 **외부** AI 에이전트(Claude, Cursor)와 터미널에서 LINE WORKS를 *다루기* 위한 도구입니다. LINE WORKS 자체의 사내용 AI(AiStudio, WORKS AI)와 겹치지 않고 상호 보완합니다. 비공식·커뮤니티 프로젝트이며 LINE WORKS / NAVER WORKS와 제휴 관계가 없습니다.
 
@@ -104,11 +104,11 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 }
 ```
 
-로그인 한 번이면 26개 도구 모두 사용 가능. 별도 env 설정 불필요.
+로그인 한 번이면 32개 도구 모두 사용 가능. 별도 env 설정 불필요.
 
 > **MCP에서 AI 에이전트가 직접 설정하기**: CLI 로그인 없이도 AI 에이전트가 `nworks_setup` → `nworks_login_user` 순서로 호출하면 브라우저 로그인만으로 전체 기능을 사용할 수 있습니다. Client Secret과 Private Key 경로는 MCP 설정의 `env` 필드 또는 시스템 환경변수로 미리 설정해야 합니다.
 
-### MCP 도구 목록 (26개)
+### MCP 도구 목록 (32개)
 
 | 도구 | 설명 | 필요 인증 |
 |------|------|----------|
@@ -145,6 +145,13 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 | `nworks_board_posts` | 게시판 글 목록 조회 | User OAuth (board.read) |
 | `nworks_board_read` | 게시판 글 상세 조회 | User OAuth (board.read) |
 | `nworks_board_create` | 게시판 글 작성 | User OAuth (board) |
+| **연락처** | | |
+| `nworks_contact_list` | 연락처 목록 조회 | User OAuth (contact.read) |
+| `nworks_contact_get` | 연락처 상세 조회 | User OAuth (contact.read) |
+| `nworks_contact_create` | 연락처 생성 | User OAuth (contact) |
+| `nworks_contact_update` | 연락처 수정 | User OAuth (contact) |
+| `nworks_contact_delete` | 연락처 삭제 | User OAuth (contact) |
+| `nworks_contact_list_tags` | 연락처 태그 목록 조회 | User OAuth (contact.read) |
 
 ### AI 에이전트 사용 예시
 
@@ -306,6 +313,34 @@ nworks board create --board <boardId> --title "공지사항" --body "내용"
 nworks board create --board <boardId> --title "공지" --body "내용" --notify --no-comment
 ```
 
+### 연락처 (User OAuth)
+
+```bash
+# 연락처 목록
+nworks contact list
+
+# 태그로 필터링
+nworks contact list --tag <contactTagId>
+
+# 연락처 상세 조회
+nworks contact get --id <contactId>
+
+# 연락처 생성
+nworks contact create --payload '{"contactName":{"lastName":"김","firstName":"철수"},"emails":[{"email":"chulsoo@example.com","primary":true}],"permission":{"accessibleRange":"MEMBER","isCoEditing":false,"accessibleMembers":[{"id":"<내 userId>","type":"USER"}]}}'
+
+# 연락처 수정
+nworks contact update --id <contactId> --payload '{"telephones":[{"type":"CELLPHONE","telephone":"010-1234-5678","primary":true}]}'
+
+# 연락처 삭제
+nworks contact delete --id <contactId>
+
+# 연락처 태그 목록
+nworks contact list-tags
+```
+
+> `contact create`는 `contactName`과 `permission`이 필수이며, `permission.accessibleMembers`에 최소 1명(보통 본인)이 있어야 합니다. 본인 userId는 `nworks whoami`로 확인합니다.
+
+
 ### CI/CD 배포 알림
 
 ```bash
@@ -343,6 +378,8 @@ done
 | `user.read` | 사용자 정보 조회 | Service Account / User OAuth | `directory members`, `task create/update/delete`의 의존성 |
 | `board` | 게시판 읽기/쓰기 | User OAuth | `board list/posts/read/create` |
 | `board.read` | 게시판 읽기 전용 | User OAuth | `board list/posts/read` |
+| `contact` | 연락처 읽기/쓰기 | User OAuth | `contact create/update/delete` (contact.read 필요) |
+| `contact.read` | 연락처 읽기 전용 | User OAuth | `contact list/get/list-tags` |
 
 > **프리셋**이 scope를 일일이 나열하는 것보다 간단합니다:
 > ```bash
