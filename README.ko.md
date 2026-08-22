@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 NAVER WORKS (LINE WORKS) 최초의 MCP 서버.
-메시지, 캘린더, 드라이브, 메일, 할 일, 게시판 — 29개 도구를 CLI와 AI 에이전트에서 쓸 수 있습니다.
+메시지, 캘린더, 드라이브, 메일, 할 일, 게시판 — 30개 도구를 CLI와 AI 에이전트에서 쓸 수 있습니다.
 
 nworks는 **외부** AI 에이전트(Claude, Cursor)와 터미널에서 LINE WORKS를 *다루기* 위한 도구입니다. LINE WORKS 자체의 사내용 AI(AiStudio, WORKS AI)와 겹치지 않고 상호 보완합니다. 비공식·커뮤니티 프로젝트이며 LINE WORKS / NAVER WORKS와 제휴 관계가 없습니다.
 
@@ -104,7 +104,7 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 }
 ```
 
-로그인 한 번이면 29개 도구 모두 사용 가능. 별도 env 설정 불필요.
+로그인 한 번이면 30개 도구 모두 사용 가능. 별도 env 설정 불필요.
 
 > **MCP에서 AI 에이전트가 직접 설정하기**: CLI 로그인 없이도 AI 에이전트가 `nworks_setup` → `nworks_login_user` 순서로 호출하면 브라우저 로그인만으로 전체 기능을 사용할 수 있습니다. Client Secret과 Private Key 경로는 MCP 설정의 `env` 필드 또는 시스템 환경변수로 미리 설정해야 합니다.
 
@@ -138,6 +138,7 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 | `nworks_mail_send` | 메일 전송 | User OAuth (mail) |
 | `nworks_mail_list` | 메일 목록 조회 | User OAuth (mail.read) |
 | `nworks_mail_read` | 메일 상세 조회 | User OAuth (mail.read) |
+| `nworks_mail_download_attachment` | 메일 첨부파일 다운로드 (5MB 초과 시 로컬 저장) | User OAuth (mail.read) |
 | **할 일** | | |
 | `nworks_task_list` | 할 일 목록 조회 | User OAuth (task.read) |
 | `nworks_task_create` | 할 일 생성 | User OAuth (task + user.read) |
@@ -278,6 +279,12 @@ nworks mail list --unread
 
 # 메일 상세 조회
 nworks mail read --id <mailId>
+
+# 메일 첨부파일 다운로드
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId>
+
+# 저장 경로/파일명 지정
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId> --out ./downloads --name invoice.pdf
 ```
 
 ### 할 일 (User OAuth)

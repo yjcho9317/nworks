@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 Full-featured MCP server for LINE WORKS (NAVER WORKS).
-CLI + MCP server — 29 tools covering messages, calendar, drive, mail, tasks, and boards.
+CLI + MCP server — 30 tools covering messages, calendar, drive, mail, tasks, and boards.
 
 nworks lets **external** AI agents (Claude, Cursor) and your terminal *operate* LINE WORKS from the outside — complementary to LINE WORKS' own in-product AI (AiStudio, WORKS AI), not a replacement. Unofficial and community-maintained; not affiliated with LINE WORKS / NAVER WORKS.
 
@@ -104,7 +104,7 @@ Then add to your MCP config (`~/.config/claude/claude_desktop_config.json`):
 }
 ```
 
-One login enables all 29 tools. No extra env setup needed.
+One login enables all 30 tools. No extra env setup needed.
 
 > Without CLI login, an AI agent can call `nworks_setup` → `nworks_login_user` to authenticate via browser directly. Client Secret and Private Key path must be pre-configured via MCP config `env` field or system environment variables.
 
@@ -138,6 +138,7 @@ One login enables all 29 tools. No extra env setup needed.
 | `nworks_mail_send` | Send mail | User OAuth (mail) |
 | `nworks_mail_list` | List mailbox | User OAuth (mail.read) |
 | `nworks_mail_read` | Read mail detail | User OAuth (mail.read) |
+| `nworks_mail_download_attachment` | Download a mail attachment (saves locally if >5MB) | User OAuth (mail.read) |
 | **Tasks** | | |
 | `nworks_task_list` | List tasks | User OAuth (task.read) |
 | `nworks_task_create` | Create task | User OAuth (task + user.read) |
@@ -278,6 +279,12 @@ nworks mail list --unread
 
 # Read mail detail
 nworks mail read --id <mailId>
+
+# Download a mail attachment
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId>
+
+# Specify output path/name
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId> --out ./downloads --name invoice.pdf
 ```
 
 ### Tasks (User OAuth)
