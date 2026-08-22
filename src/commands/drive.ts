@@ -132,8 +132,114 @@ const downloadCommand = new Command("download")
     }
   });
 
+const sharedriveListCommand = new Command("sharedrive-list")
+  .description("List shared drives (requires User OAuth with file or file.read scope)")
+  .option("--count <n>", "Items per page (default: 20)", "20")
+  .option("--cursor <cursor>", "Pagination cursor")
+  .option("--profile <name>", "Profile name", "default")
+  .option("--json", "JSON output")
+  .action(async (opts) => {
+    try {
+      const result = await driveApi.listSharedDrives(
+        parseInt(opts.count as string, 10),
+        opts.cursor as string | undefined,
+        opts.profile as string
+      );
+
+      output(
+        {
+          sharedDrives: result.sharedDrives,
+          count: result.sharedDrives.length,
+          nextCursor: result.responseMetaData?.nextCursor ?? null,
+        },
+        opts
+      );
+    } catch (err) {
+      cliError(err, opts, "drive");
+    }
+  });
+
+const sharedriveFilesCommand = new Command("sharedrive-files")
+  .description("List files in a shared drive (requires User OAuth with file or file.read scope)")
+  .requiredOption("--sharedrive <sharedriveId>", "Shared drive ID (from sharedrive-list)")
+  .option("--folder <fileId>", "Folder ID to list (default: root)")
+  .option("--count <n>", "Items per page (default: 20)", "20")
+  .option("--cursor <cursor>", "Pagination cursor")
+  .option("--profile <name>", "Profile name", "default")
+  .option("--json", "JSON output")
+  .action(async (opts) => {
+    try {
+      const result = await driveApi.listSharedDriveFiles(
+        opts.sharedrive as string,
+        opts.folder as string | undefined,
+        parseInt(opts.count as string, 10),
+        opts.cursor as string | undefined,
+        opts.profile as string
+      );
+
+      const files = result.files.map((f) => ({
+        name: f.fileName,
+        type: f.fileType,
+        size: f.fileSize,
+        modified: f.modifiedTime,
+        fileId: f.fileId,
+      }));
+
+      output(
+        {
+          files,
+          count: files.length,
+          nextCursor: result.responseMetaData?.nextCursor ?? null,
+        },
+        opts
+      );
+    } catch (err) {
+      cliError(err, opts, "drive");
+    }
+  });
+
+const sharedriveDownloadCommand = new Command("sharedrive-download")
+  .description("Download a file from a shared drive (requires User OAuth with file or file.read scope)")
+  .requiredOption("--sharedrive <sharedriveId>", "Shared drive ID (from sharedrive-list)")
+  .requiredOption("--file-id <fileId>", "File ID to download")
+  .option("--out <path>", "Output directory (default: current directory)")
+  .option("--name <filename>", "Output filename (default: original name)")
+  .option("--profile <name>", "Profile name", "default")
+  .option("--json", "JSON output")
+  .action(async (opts) => {
+    try {
+      const result = await driveApi.downloadSharedDriveFile(
+        opts.sharedrive as string,
+        opts.fileId as string,
+        opts.profile as string
+      );
+
+      const fileName =
+        (opts.name as string | undefined) ?? result.fileName ?? (opts.fileId as string);
+      const outDir = (opts.out as string | undefined) ?? process.cwd();
+      const outPath = join(outDir, fileName);
+
+      await writeFile(outPath, result.buffer);
+
+      output(
+        {
+          success: true,
+          fileName,
+          path: outPath,
+          size: result.buffer.length,
+        },
+        opts
+      );
+    } catch (err) {
+      cliError(err, opts, "drive");
+    }
+  });
+
 export const driveCommand = new Command("drive")
   .description("Drive operations (requires User OAuth with file scope)")
   .addCommand(listCommand)
   .addCommand(uploadCommand)
-  .addCommand(downloadCommand);
+  .addCommand(downloadCommand)
+  .addCommand(sharedriveListCommand)
+  .addCommand(sharedriveFilesCommand)
+  .addCommand(sharedriveDownloadCommand);

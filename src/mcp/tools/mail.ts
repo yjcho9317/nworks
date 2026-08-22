@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import * as mailApi from "../../api/mail.js";
 import { mcpErrorHint } from "../../utils/error-hints.js";
+import { validateLocalPath, sanitizeFileName } from "../../utils/sanitize.js";
 import { defineTool } from "../tool-registry.js";
 
 export function registerMailTools(server: McpServer): void {
@@ -116,6 +117,74 @@ export function registerMailTools(server: McpServer): void {
       } catch (err) {
         return {
           content: [{ type: "text" as const, text: mcpErrorHint(err, "mail.read") }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Tool 14: 메일 첨부파일 다운로드
+  defineTool(server,
+    "nworks_mail_download_attachment",
+    "메일 첨부파일을 다운로드합니다. mailId와 attachmentId는 nworks_mail_read로 조회 가능. User OAuth 인증 필요 (mail.read scope). outputDir을 지정하면 로컬에 파일로 저장하고, 미지정 시 파일 내용을 직접 반환합니다 (텍스트는 text, 바이너리는 base64). 5MB 초과 파일은 반드시 outputDir를 지정해야 합니다.",
+    {
+      mailId: z.number().int().min(0).describe("메일 ID (nworks_mail_list로 조회 가능)"),
+      attachmentId: z.number().int().min(0).describe("첨부파일 ID (nworks_mail_read로 조회 가능)"),
+      outputDir: z.string().optional().describe("저장 디렉토리 (지정 시 파일로 저장, 미지정 시 내용을 직접 반환)"),
+      outputName: z.string().optional().describe("저장 파일명 (미지정 시 원본 파일명)"),
+      userId: z.string().optional().describe("대상 사용자 ID (미지정 시 me)"),
+    },
+    async ({ mailId, attachmentId, outputDir, outputName, userId }) => {
+      try {
+        const result = await mailApi.downloadAttachment(
+          mailId,
+          attachmentId,
+          userId ?? "me"
+        );
+
+        const fileName = outputName ?? result.filename;
+
+        if (outputDir) {
+          // 로컬 저장 방식 (CLI 환경용)
+          const { writeFile } = await import("node:fs/promises");
+          const { join } = await import("node:path");
+          const safeDir = validateLocalPath(outputDir);
+          const safeName = sanitizeFileName(fileName);
+          const outPath = join(safeDir, safeName);
+          validateLocalPath(outPath, safeDir);
+          await writeFile(outPath, result.buffer);
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, fileName, path: outPath, size: result.buffer.length }) }],
+          };
+        }
+
+        // 내용 직접 반환 방식 (MCP 환경용)
+        const MAX_INLINE_SIZE = 5 * 1024 * 1024; // 5MB
+        if (result.buffer.length > MAX_INLINE_SIZE) {
+          const sizeMB = (result.buffer.length / (1024 * 1024)).toFixed(1);
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: true, message: `파일이 너무 큽니다 (${sizeMB}MB). outputDir를 지정해서 로컬에 저장하세요.`, fileName, size: result.buffer.length }) }],
+            isError: true,
+          };
+        }
+
+        const textExtensions = /\.(txt|md|csv|json|xml|html|htm|css|js|ts|jsx|tsx|yaml|yml|toml|ini|cfg|conf|log|sh|bash|zsh|py|rb|java|go|rs|c|cpp|h|hpp|sql|graphql|env|gitignore|dockerignore|editorconfig)$/i;
+        const isText = textExtensions.test(fileName);
+
+        if (isText) {
+          const text = result.buffer.toString("utf-8");
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ success: true, fileName, size: result.buffer.length, encoding: "text", content: text }) }],
+          };
+        }
+
+        const base64 = result.buffer.toString("base64");
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ success: true, fileName, size: result.buffer.length, encoding: "base64", content: base64 }) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: mcpErrorHint(err, "mail.download_attachment") }],
           isError: true,
         };
       }

@@ -16,9 +16,14 @@ const TOOL_ANNOTATIONS: Record<string, ToolAnnotations> = {
   nworks_drive_upload: { title: "Upload file to drive", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   // download는 outputDir 지정 시 로컬 파일을 쓰므로 순수 읽기가 아니다(readOnlyHint=false).
   nworks_drive_download: { title: "Download drive file", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  nworks_sharedrive_list: { title: "List shared drives", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_sharedrive_files: { title: "List shared drive files", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  nworks_sharedrive_download: { title: "Download shared drive file", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   nworks_mail_send: { title: "Send mail", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   nworks_mail_list: { title: "List mail", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   nworks_mail_read: { title: "Read mail", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
+  // drive_download와 같은 이유로 outputDir 지정 시 로컬 파일을 쓴다(readOnlyHint=false).
+  nworks_mail_download_attachment: { title: "Download mail attachment", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   nworks_task_list: { title: "List tasks", readOnlyHint: true, idempotentHint: true, openWorldHint: true },
   nworks_task_create: { title: "Create task", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   nworks_task_update: { title: "Update task", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },

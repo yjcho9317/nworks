@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 Full-featured MCP server for LINE WORKS (NAVER WORKS).
-CLI + MCP server — 32 tools covering messages, calendar, drive, mail, tasks, and boards.
+CLI + MCP server — 36 tools covering messages, calendar, drive, mail, tasks, and boards.
 
 nworks lets **external** AI agents (Claude, Cursor) and your terminal *operate* LINE WORKS from the outside — complementary to LINE WORKS' own in-product AI (AiStudio, WORKS AI), not a replacement. Unofficial and community-maintained; not affiliated with LINE WORKS / NAVER WORKS.
 
@@ -104,7 +104,7 @@ Then add to your MCP config (`~/.config/claude/claude_desktop_config.json`):
 }
 ```
 
-One login enables all 32 tools. No extra env setup needed.
+One login enables all 36 tools. No extra env setup needed.
 
 > Without CLI login, an AI agent can call `nworks_setup` → `nworks_login_user` to authenticate via browser directly. Client Secret and Private Key path must be pre-configured via MCP config `env` field or system environment variables.
 
@@ -131,10 +131,14 @@ One login enables all 32 tools. No extra env setup needed.
 | `nworks_drive_list` | List drive files/folders | User OAuth (file.read) |
 | `nworks_drive_upload` | Upload file to drive | User OAuth (file) |
 | `nworks_drive_download` | Download file (saves locally if >5MB) | User OAuth (file.read) |
+| `nworks_sharedrive_list` | List shared drives | User OAuth (file.read) |
+| `nworks_sharedrive_files` | List files/folders in a shared drive | User OAuth (file.read) |
+| `nworks_sharedrive_download` | Download a shared drive file (saves locally if >5MB) | User OAuth (file.read) |
 | **Mail** | | |
 | `nworks_mail_send` | Send mail | User OAuth (mail) |
 | `nworks_mail_list` | List mailbox | User OAuth (mail.read) |
 | `nworks_mail_read` | Read mail detail | User OAuth (mail.read) |
+| `nworks_mail_download_attachment` | Download a mail attachment (saves locally if >5MB) | User OAuth (mail.read) |
 | **Tasks** | | |
 | `nworks_task_list` | List tasks | User OAuth (task.read) |
 | `nworks_task_create` | Create task | User OAuth (task + user.read) |
@@ -251,6 +255,18 @@ nworks drive download --file-id <fileId>
 
 # Specify output path/name
 nworks drive download --file-id <fileId> --out ./downloads --name report.pdf
+
+# List shared drives
+nworks drive sharedrive-list
+
+# List files in a shared drive (root)
+nworks drive sharedrive-files --sharedrive <sharedriveId>
+
+# List files in a shared drive folder
+nworks drive sharedrive-files --sharedrive <sharedriveId> --folder <fileId>
+
+# Download a shared drive file
+nworks drive sharedrive-download --sharedrive <sharedriveId> --file-id <fileId>
 ```
 
 ### Mail (User OAuth)
@@ -270,6 +286,12 @@ nworks mail list --unread
 
 # Read mail detail
 nworks mail read --id <mailId>
+
+# Download a mail attachment
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId>
+
+# Specify output path/name
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId> --out ./downloads --name invoice.pdf
 ```
 
 ### Tasks (User OAuth)

@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 LINE WORKS (NAVER WORKS) 初のMCPサーバー。
-メッセージ、カレンダー、ドライブ、メール、タスク、掲示板 — 32ツール対応のCLI + MCPサーバーです。
+メッセージ、カレンダー、ドライブ、メール、タスク、掲示板 — 36ツール対応のCLI + MCPサーバーです。
 
 nworksは、**外部**のAIエージェント（Claude、Cursor）やターミナルからLINE WORKSを*操作*するためのレイヤーです。LINE WORKS自身の社内向けAI（AiStudio、WORKS AI）とは競合せず、補完関係にあります。非公式・コミュニティ運営であり、LINE WORKS / NAVER WORKSとの提携関係はありません。
 
@@ -104,7 +104,7 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 }
 ```
 
-一度のログインで32ツールすべて利用可能。追加のenv設定は不要です。
+一度のログインで36ツールすべて利用可能。追加のenv設定は不要です。
 
 > CLIログインなしでも、AIエージェントが `nworks_setup` → `nworks_login_user` を呼び出せばブラウザから直接認証できます。Client SecretとPrivate Keyのパスは、MCP設定の `env` フィールドまたはシステム環境変数で事前に設定してください。
 
@@ -131,10 +131,14 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 | `nworks_drive_list` | ドライブのファイル/フォルダ一覧 | User OAuth (file.read) |
 | `nworks_drive_upload` | ドライブにファイルアップロード | User OAuth (file) |
 | `nworks_drive_download` | ドライブからファイルダウンロード（5MB超はローカル保存） | User OAuth (file.read) |
+| `nworks_sharedrive_list` | 共有ドライブ一覧 | User OAuth (file.read) |
+| `nworks_sharedrive_files` | 共有ドライブのファイル/フォルダ一覧 | User OAuth (file.read) |
+| `nworks_sharedrive_download` | 共有ドライブのファイルをダウンロード (5MB超はローカル保存) | User OAuth (file.read) |
 | **メール** | | |
 | `nworks_mail_send` | メール送信 | User OAuth (mail) |
 | `nworks_mail_list` | メールボックス一覧 | User OAuth (mail.read) |
 | `nworks_mail_read` | メール詳細表示 | User OAuth (mail.read) |
+| `nworks_mail_download_attachment` | メール添付ファイルのダウンロード (5MB超はローカル保存) | User OAuth (mail.read) |
 | **タスク** | | |
 | `nworks_task_list` | タスク一覧 | User OAuth (task.read) |
 | `nworks_task_create` | タスク作成 | User OAuth (task + user.read) |
@@ -251,6 +255,18 @@ nworks drive download --file-id <fileId>
 
 # 出力先/ファイル名指定
 nworks drive download --file-id <fileId> --out ./downloads --name report.pdf
+
+# 共有ドライブ一覧
+nworks drive sharedrive-list
+
+# 共有ドライブのファイル一覧 (ルート)
+nworks drive sharedrive-files --sharedrive <sharedriveId>
+
+# 共有ドライブのフォルダ内ファイル一覧
+nworks drive sharedrive-files --sharedrive <sharedriveId> --folder <fileId>
+
+# 共有ドライブのファイルをダウンロード
+nworks drive sharedrive-download --sharedrive <sharedriveId> --file-id <fileId>
 ```
 
 ### メール（User OAuth）
@@ -270,6 +286,12 @@ nworks mail list --unread
 
 # メール詳細表示
 nworks mail read --id <mailId>
+
+# メール添付ファイルのダウンロード
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId>
+
+# 保存先/ファイル名を指定
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId> --out ./downloads --name invoice.pdf
 ```
 
 ### タスク（User OAuth）

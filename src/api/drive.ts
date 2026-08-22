@@ -8,8 +8,11 @@ const BASE_URL = "https://www.worksapis.com/v1.0";
 
 const MAX_UPLOAD_SIZE = 100 * 1024 * 1024; // 100MB
 
+// download 엔드포인트의 302 Location은 apis-storage 호스트를 가리킨다.
+// storage.worksmobile.com의 하위 도메인이 아니므로 별도 항목으로 허용해야 한다.
 const ALLOWED_HOSTS = [
   "storage.worksmobile.com",
+  "apis-storage.worksmobile.com",
   "www.worksapis.com",
   "worksapis.com",
 ];
@@ -44,6 +47,19 @@ export interface UploadResult {
   fileSize: string;
   filePath: string;
   fileType: string;
+}
+
+export interface SharedDrive {
+  sharedriveId: string;
+  name: string;
+  description?: string;
+  permissionType?: string;
+  hasPermission?: boolean;
+}
+
+export interface SharedDriveListResult {
+  sharedDrives: SharedDrive[];
+  responseMetaData?: { nextCursor?: string };
 }
 
 export async function listFiles(
@@ -205,13 +221,12 @@ export async function uploadBuffer(
   return (await uploadRes.json()) as UploadResult;
 }
 
-export async function downloadFile(
-  fileId: string,
-  userId = "me",
-  profile = "default"
+// 개인 드라이브와 공유 드라이브 모두 download 엔드포인트가 302로 스토리지 URL을
+// 돌려주는 동일한 흐름이라 리다이렉트 처리를 공유한다.
+async function downloadViaRedirect(
+  url: string,
+  profile: string
 ): Promise<{ buffer: Buffer; fileName?: string }> {
-  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/drive/files/${sanitizePathSegment(fileId)}/download`;
-
   if (process.env["NWORKS_VERBOSE"] === "1") {
     console.error(`[nworks] GET ${url} (get download URL)`);
   }
@@ -234,7 +249,10 @@ export async function downloadFile(
     console.error(`[nworks] GET ${safeLocation} (download content)`);
   }
 
-  const downloadRes = await fetch(safeLocation, { method: "GET" });
+  // 스토리지 호스트도 Bearer 토큰을 요구한다(헤더 없이 호출하면 401).
+  // 토큰을 실어 보내도 되는 이유는 바로 위 validateRedirectUrl이 호스트를
+  // 화이트리스트로 검증한 뒤이기 때문이다. 검증 전에 호출하면 토큰이 샌다.
+  const downloadRes = await userFetch(safeLocation, { method: "GET" }, profile);
 
   if (!downloadRes.ok) return handleUserApiError(downloadRes);
 
@@ -251,4 +269,77 @@ export async function downloadFile(
   }
 
   return { buffer, fileName };
+}
+
+export async function downloadFile(
+  fileId: string,
+  userId = "me",
+  profile = "default"
+): Promise<{ buffer: Buffer; fileName?: string }> {
+  const url = `${BASE_URL}/users/${sanitizePathSegment(userId)}/drive/files/${sanitizePathSegment(fileId)}/download`;
+  return downloadViaRedirect(url, profile);
+}
+
+export async function listSharedDrives(
+  count = 20,
+  cursor?: string,
+  profile = "default"
+): Promise<SharedDriveListResult> {
+  const params = new URLSearchParams();
+  params.set("count", String(count));
+  if (cursor) params.set("cursor", cursor);
+
+  const url = `${BASE_URL}/sharedrives?${params.toString()}`;
+
+  if (process.env["NWORKS_VERBOSE"] === "1") {
+    console.error(`[nworks] GET ${url}`);
+  }
+
+  const res = await userFetch(url, { method: "GET" }, profile);
+
+  if (!res.ok) return handleUserApiError(res);
+
+  // 이 엔드포인트만 목록 키가 camelCase가 아닌 전부 소문자 "sharedrives"다.
+  const data = (await res.json()) as {
+    sharedrives?: SharedDrive[];
+    responseMetaData?: { nextCursor?: string };
+  };
+  return { sharedDrives: data.sharedrives ?? [], responseMetaData: data.responseMetaData };
+}
+
+export async function listSharedDriveFiles(
+  sharedriveId: string,
+  folderId?: string,
+  count = 20,
+  cursor?: string,
+  profile = "default"
+): Promise<FileListResult> {
+  const base = `${BASE_URL}/sharedrives/${sanitizePathSegment(sharedriveId)}/files`;
+  const path = folderId ? `${base}/${sanitizePathSegment(folderId)}/children` : base;
+
+  const params = new URLSearchParams();
+  params.set("count", String(count));
+  if (cursor) params.set("cursor", cursor);
+
+  const url = `${path}?${params.toString()}`;
+
+  if (process.env["NWORKS_VERBOSE"] === "1") {
+    console.error(`[nworks] GET ${url}`);
+  }
+
+  const res = await userFetch(url, { method: "GET" }, profile);
+
+  if (!res.ok) return handleUserApiError(res);
+
+  const data = (await res.json()) as FileListResult;
+  return { files: data.files ?? [], responseMetaData: data.responseMetaData };
+}
+
+export async function downloadSharedDriveFile(
+  sharedriveId: string,
+  fileId: string,
+  profile = "default"
+): Promise<{ buffer: Buffer; fileName?: string }> {
+  const url = `${BASE_URL}/sharedrives/${sanitizePathSegment(sharedriveId)}/files/${sanitizePathSegment(fileId)}/download`;
+  return downloadViaRedirect(url, profile);
 }
