@@ -3,8 +3,8 @@
   "name": "nworks",
   "display_name": "nworks — LINE WORKS / NAVER WORKS",
   "version": "1.3.0",
-  "description": "Control LINE WORKS / NAVER WORKS messages, calendar, drive, mail, tasks, and boards from AI agents.",
-  "long_description": "CLI and MCP server for LINE WORKS (NAVER WORKS). Exposes 30 tools covering messages, calendar, drive, mail, tasks, and boards. Requires a Developer Console app (Client ID/Secret); see the onboarding guide.",
+  "description": "Control LINE WORKS / NAVER WORKS messages, calendar, drive, mail, tasks, boards, and contacts from AI agents.",
+  "long_description": "CLI and MCP server for LINE WORKS (NAVER WORKS). Exposes 36 tools covering messages, calendar, drive, mail, tasks, and boards. Requires a Developer Console app (Client ID/Secret); see the onboarding guide.",
   "author": {
     "name": "yjcho9317",
     "url": "https://github.com/yjcho9317"

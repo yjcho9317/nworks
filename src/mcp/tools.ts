@@ -7,6 +7,7 @@ import { registerDriveTools } from "./tools/drive.js";
 import { registerMailTools } from "./tools/mail.js";
 import { registerTaskTools } from "./tools/task.js";
 import { registerBoardTools } from "./tools/board.js";
+import { registerContactTools } from "./tools/contact.js";
 import { registerAuthTools } from "./tools/auth.js";
 import { registerDiagnosticsTools } from "./tools/diagnostics.js";
 
@@ -20,6 +21,7 @@ export function registerTools(server: McpServer): void {
   registerMailTools(server);
   registerTaskTools(server);
   registerBoardTools(server);
+  registerContactTools(server);
   registerAuthTools(server);
   registerDiagnosticsTools(server);
 }

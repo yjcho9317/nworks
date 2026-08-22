@@ -13,6 +13,7 @@ const READ_SCOPES = [
   "task.read",
   "user.read",
   "board.read",
+  "contact.read",
 ];
 
 const ALL_SCOPES = [
@@ -27,6 +28,8 @@ const ALL_SCOPES = [
   "user.read",
   "board",
   "board.read",
+  "contact",
+  "contact.read",
 ];
 
 // 쓰기 scope가 의존하는 읽기 scope를 자동 추가한다. 사용자가 직접 좁은 scope를
@@ -40,6 +43,7 @@ const SCOPE_DEPENDENCIES: Record<string, string[]> = {
   task: ["task.read", "user.read"],
   "task.read": ["user.read"],
   board: ["board.read"],
+  contact: ["contact.read"],
 };
 
 export const SCOPE_PRESETS: Record<ScopePreset, string[]> = {

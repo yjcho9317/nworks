@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 LINE WORKS (NAVER WORKS) 初のMCPサーバー。
-メッセージ、カレンダー、ドライブ、メール、タスク、掲示板 — 30ツール対応のCLI + MCPサーバーです。
+メッセージ、カレンダー、ドライブ、メール、タスク、掲示板 — 36ツール対応のCLI + MCPサーバーです。
 
 nworksは、**外部**のAIエージェント（Claude、Cursor）やターミナルからLINE WORKSを*操作*するためのレイヤーです。LINE WORKS自身の社内向けAI（AiStudio、WORKS AI）とは競合せず、補完関係にあります。非公式・コミュニティ運営であり、LINE WORKS / NAVER WORKSとの提携関係はありません。
 
@@ -104,11 +104,11 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 }
 ```
 
-一度のログインで30ツールすべて利用可能。追加のenv設定は不要です。
+一度のログインで36ツールすべて利用可能。追加のenv設定は不要です。
 
 > CLIログインなしでも、AIエージェントが `nworks_setup` → `nworks_login_user` を呼び出せばブラウザから直接認証できます。Client SecretとPrivate Keyのパスは、MCP設定の `env` フィールドまたはシステム環境変数で事前に設定してください。
 
-### MCPツール一覧（29個）
+### MCPツール一覧（32個）
 
 | ツール | 説明 | 必要な認証 |
 |--------|------|-----------|
@@ -149,6 +149,13 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 | `nworks_board_posts` | 掲示板の投稿一覧 | User OAuth (board.read) |
 | `nworks_board_read` | 掲示板の投稿詳細 | User OAuth (board.read) |
 | `nworks_board_create` | 掲示板に投稿作成 | User OAuth (board) |
+| **連絡先** | | |
+| `nworks_contact_list` | 連絡先一覧 | User OAuth (contact.read) |
+| `nworks_contact_get` | 連絡先の詳細 | User OAuth (contact.read) |
+| `nworks_contact_create` | 連絡先の作成 | User OAuth (contact) |
+| `nworks_contact_update` | 連絡先の更新 | User OAuth (contact) |
+| `nworks_contact_delete` | 連絡先の削除 | User OAuth (contact) |
+| `nworks_contact_list_tags` | 連絡先タグ一覧 | User OAuth (contact.read) |
 
 ### AIエージェント使用例
 
@@ -328,6 +335,34 @@ nworks board create --board <boardId> --title "お知らせ" --body "内容"
 nworks board create --board <boardId> --title "通知" --body "内容" --notify --no-comment
 ```
 
+### 連絡先 (User OAuth)
+
+```bash
+# 連絡先一覧
+nworks contact list
+
+# タグで絞り込み
+nworks contact list --tag <contactTagId>
+
+# 連絡先の詳細
+nworks contact get --id <contactId>
+
+# 連絡先の作成
+nworks contact create --payload '{"contactName":{"lastName":"金","firstName":"哲秀"},"emails":[{"email":"chulsoo@example.com","primary":true}],"permission":{"accessibleRange":"MEMBER","isCoEditing":false,"accessibleMembers":[{"id":"<自分のuserId>","type":"USER"}]}}'
+
+# 連絡先の更新
+nworks contact update --id <contactId> --payload '{"telephones":[{"type":"CELLPHONE","telephone":"010-1234-5678","primary":true}]}'
+
+# 連絡先の削除
+nworks contact delete --id <contactId>
+
+# 連絡先タグ一覧
+nworks contact list-tags
+```
+
+> `contact create` は `contactName` と `permission` が必須で、`permission.accessibleMembers` に最低1名(通常は自分)が必要です。自分のuserIdは `nworks whoami` で確認できます。
+
+
 ### CI/CDデプロイ通知
 
 ```bash
@@ -365,6 +400,8 @@ done
 | `user.read` | ユーザー情報取得 | Service Account / User OAuth | `directory members`、タスク書き込みの依存関係 |
 | `board` | 掲示板読み書き | User OAuth | `board list/posts/read/create` |
 | `board.read` | 掲示板読み取り専用 | User OAuth | `board list/posts/read` |
+| `contact` | 連絡先の読み書き | User OAuth | `contact create/update/delete` (contact.read が必要) |
+| `contact.read` | 連絡先の読み取り専用 | User OAuth | `contact list/get/list-tags` |
 
 > **プリセット**を使うとscopeを個別に列挙するより簡単です:
 > ```bash

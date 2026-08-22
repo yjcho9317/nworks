@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 Full-featured MCP server for LINE WORKS (NAVER WORKS).
-CLI + MCP server — 30 tools covering messages, calendar, drive, mail, tasks, and boards.
+CLI + MCP server — 36 tools covering messages, calendar, drive, mail, tasks, and boards.
 
 nworks lets **external** AI agents (Claude, Cursor) and your terminal *operate* LINE WORKS from the outside — complementary to LINE WORKS' own in-product AI (AiStudio, WORKS AI), not a replacement. Unofficial and community-maintained; not affiliated with LINE WORKS / NAVER WORKS.
 
@@ -104,11 +104,11 @@ Then add to your MCP config (`~/.config/claude/claude_desktop_config.json`):
 }
 ```
 
-One login enables all 30 tools. No extra env setup needed.
+One login enables all 36 tools. No extra env setup needed.
 
 > Without CLI login, an AI agent can call `nworks_setup` → `nworks_login_user` to authenticate via browser directly. Client Secret and Private Key path must be pre-configured via MCP config `env` field or system environment variables.
 
-### MCP Tools (29)
+### MCP Tools (32)
 
 | Tool | Description | Auth |
 |------|-------------|------|
@@ -149,6 +149,13 @@ One login enables all 30 tools. No extra env setup needed.
 | `nworks_board_posts` | List board posts | User OAuth (board.read) |
 | `nworks_board_read` | Read board post detail | User OAuth (board.read) |
 | `nworks_board_create` | Create board post | User OAuth (board) |
+| **Contacts** | | |
+| `nworks_contact_list` | List contacts | User OAuth (contact.read) |
+| `nworks_contact_get` | Get contact detail | User OAuth (contact.read) |
+| `nworks_contact_create` | Create contact | User OAuth (contact) |
+| `nworks_contact_update` | Update contact | User OAuth (contact) |
+| `nworks_contact_delete` | Delete contact | User OAuth (contact) |
+| `nworks_contact_list_tags` | List contact tags | User OAuth (contact.read) |
 
 ### AI Agent Usage Example
 
@@ -328,6 +335,34 @@ nworks board create --board <boardId> --title "Announcement" --body "Content"
 nworks board create --board <boardId> --title "Notice" --body "Content" --notify --no-comment
 ```
 
+### Contacts (User OAuth)
+
+```bash
+# List contacts
+nworks contact list
+
+# Filter by tag
+nworks contact list --tag <contactTagId>
+
+# Get contact detail
+nworks contact get --id <contactId>
+
+# Create contact
+nworks contact create --payload '{"contactName":{"lastName":"Kim","firstName":"Chulsoo"},"emails":[{"email":"chulsoo@example.com","primary":true}],"permission":{"accessibleRange":"MEMBER","isCoEditing":false,"accessibleMembers":[{"id":"<yourUserId>","type":"USER"}]}}'
+
+# Update contact
+nworks contact update --id <contactId> --payload '{"telephones":[{"type":"CELLPHONE","telephone":"010-1234-5678","primary":true}]}'
+
+# Delete contact
+nworks contact delete --id <contactId>
+
+# List contact tags
+nworks contact list-tags
+```
+
+> `contact create` requires `contactName` and `permission`; `permission.accessibleMembers` must list at least one member (usually yourself). Get your own user ID from `nworks whoami`.
+
+
 ### CI/CD Deploy Notification
 
 ```bash
@@ -365,6 +400,8 @@ Add the required scopes in the [LINE WORKS Developer Console](https://dev.worksm
 | `user.read` | User info read | Service Account / User OAuth | `directory members`, also needed for task write |
 | `board` | Boards read/write | User OAuth | `board list/posts/read/create` |
 | `board.read` | Boards read-only | User OAuth | `board list/posts/read` |
+| `contact` | Contacts read/write | User OAuth | `contact create/update/delete` (requires contact.read) |
+| `contact.read` | Contacts read-only | User OAuth | `contact list/get/list-tags` |
 
 > **Presets** are simpler than listing scopes:
 > ```bash
