@@ -14,7 +14,7 @@ Featured in [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-server
 </p>
 
 LINE WORKS (NAVER WORKS) 初のMCPサーバー。
-メッセージ、カレンダー、ドライブ、メール、タスク、掲示板 — 26ツール対応のCLI + MCPサーバーです。
+メッセージ、カレンダー、ドライブ、メール、タスク、掲示板 — 27ツール対応のCLI + MCPサーバーです。
 
 nworksは、**外部**のAIエージェント（Claude、Cursor）やターミナルからLINE WORKSを*操作*するためのレイヤーです。LINE WORKS自身の社内向けAI（AiStudio、WORKS AI）とは競合せず、補完関係にあります。非公式・コミュニティ運営であり、LINE WORKS / NAVER WORKSとの提携関係はありません。
 
@@ -104,11 +104,11 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 }
 ```
 
-一度のログインで26ツールすべて利用可能。追加のenv設定は不要です。
+一度のログインで27ツールすべて利用可能。追加のenv設定は不要です。
 
 > CLIログインなしでも、AIエージェントが `nworks_setup` → `nworks_login_user` を呼び出せばブラウザから直接認証できます。Client SecretとPrivate Keyのパスは、MCP設定の `env` フィールドまたはシステム環境変数で事前に設定してください。
 
-### MCPツール一覧（26個）
+### MCPツール一覧（27個）
 
 | ツール | 説明 | 必要な認証 |
 |--------|------|-----------|
@@ -135,6 +135,7 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 | `nworks_mail_send` | メール送信 | User OAuth (mail) |
 | `nworks_mail_list` | メールボックス一覧 | User OAuth (mail.read) |
 | `nworks_mail_read` | メール詳細表示 | User OAuth (mail.read) |
+| `nworks_mail_download_attachment` | メール添付ファイルのダウンロード (5MB超はローカル保存) | User OAuth (mail.read) |
 | **タスク** | | |
 | `nworks_task_list` | タスク一覧 | User OAuth (task.read) |
 | `nworks_task_create` | タスク作成 | User OAuth (task + user.read) |
@@ -263,6 +264,12 @@ nworks mail list --unread
 
 # メール詳細表示
 nworks mail read --id <mailId>
+
+# メール添付ファイルのダウンロード
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId>
+
+# 保存先/ファイル名を指定
+nworks mail download-attachment --id <mailId> --attachment-id <attachmentId> --out ./downloads --name invoice.pdf
 ```
 
 ### タスク（User OAuth）

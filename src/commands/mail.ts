@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { Command } from "commander";
 import * as mailApi from "../api/mail.js";
 import { output } from "../output/format.js";
@@ -123,8 +125,47 @@ const readCommand = new Command("read")
     }
   });
 
+const downloadAttachmentCommand = new Command("download-attachment")
+  .description("Download a mail attachment (requires User OAuth with mail or mail.read scope)")
+  .requiredOption("--id <mailId>", "Mail ID (from mail list)")
+  .requiredOption("--attachment-id <attachmentId>", "Attachment ID (from mail read)")
+  .option("--out <path>", "Output directory (default: current directory)")
+  .option("--name <filename>", "Output filename (default: original name)")
+  .option("--user <userId>", "Target user ID (default: me)")
+  .option("--profile <name>", "Profile name", "default")
+  .option("--json", "JSON output")
+  .action(async (opts) => {
+    try {
+      const result = await mailApi.downloadAttachment(
+        parseInt(opts.id as string, 10),
+        parseInt(opts.attachmentId as string, 10),
+        (opts.user as string | undefined) ?? "me",
+        opts.profile as string
+      );
+
+      const fileName = (opts.name as string | undefined) ?? result.filename;
+      const outDir = (opts.out as string | undefined) ?? process.cwd();
+      const outPath = join(outDir, fileName);
+
+      await writeFile(outPath, result.buffer);
+
+      output(
+        {
+          success: true,
+          fileName,
+          path: outPath,
+          size: result.buffer.length,
+        },
+        opts
+      );
+    } catch (err) {
+      cliError(err, opts, "mail");
+    }
+  });
+
 export const mailCommand = new Command("mail")
   .description("Mail operations (requires User OAuth with mail scope)")
   .addCommand(sendCommand)
   .addCommand(listCommand)
-  .addCommand(readCommand);
+  .addCommand(readCommand)
+  .addCommand(downloadAttachmentCommand);
