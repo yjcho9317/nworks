@@ -124,7 +124,14 @@ async function handleUserLogin(
     execFile("open", [authorizeUrl]);
   } else if (process.platform === "win32") {
     // Windows의 start는 cmd 내장 명령이라 cmd /c로 실행한다. 빈 "" 는 start의 title 인자.
-    execFile("cmd", ["/c", "start", "", authorizeUrl]);
+    // cmd.exe는 execFile이 넘긴 argv와 무관하게 GetCommandLineW()로 전체 명령줄을 자체
+    // 재파싱하므로, URL이 따옴표로 감싸이지 않으면 쿼리스트링의 &를 명령 구분자로 오인해
+    // 그 앞부분까지만 실행한다(예: authorize?client_id=x&scope=y → client_id=x에서 끊김).
+    // windowsVerbatimArguments로 Node의 자동 인자 이스케이프를 끄고 URL을 직접 큰따옴표로
+    // 감싸, cmd.exe가 내부의 &를 리터럴로 인식하게 만든다.
+    execFile("cmd", ["/c", "start", '""', `"${authorizeUrl}"`], {
+      windowsVerbatimArguments: true,
+    });
   } else {
     execFile("xdg-open", [authorizeUrl]);
   }
