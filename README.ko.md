@@ -148,7 +148,7 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 | `nworks_board_list` | 게시판 목록 조회 | User OAuth (board.read) |
 | `nworks_board_posts` | 게시판 글 목록 조회 | User OAuth (board.read) |
 | `nworks_board_read` | 게시판 글 상세 조회 | User OAuth (board.read) |
-| `nworks_board_create` | 게시판 글 작성 | User OAuth (board) |
+| `nworks_board_create` | 게시판 글 작성 (`filePaths` 로 파일 첨부 가능) | User OAuth (board) |
 | **연락처** | | |
 | `nworks_contact_list` | 연락처 목록 조회 | User OAuth (contact.read) |
 | `nworks_contact_get` | 연락처 상세 조회 | User OAuth (contact.read) |
@@ -431,6 +431,7 @@ NWORKS_BOT_ID=
 NWORKS_DOMAIN_ID=
 NWORKS_SCOPE=              # 기본: bot bot.read user.read
 NWORKS_VERBOSE=1           # 디버그 로깅
+NWORKS_UPLOAD_BASE=        # 게시판 첨부 허용 경로 제한 (경로 구분자로 여러 디렉토리)
 ```
 
 ### MCP 서버에 환경 변수 직접 설정

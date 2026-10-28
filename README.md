@@ -148,7 +148,7 @@ One login enables all 36 tools. No extra env setup needed.
 | `nworks_board_list` | List boards | User OAuth (board.read) |
 | `nworks_board_posts` | List board posts | User OAuth (board.read) |
 | `nworks_board_read` | Read board post detail | User OAuth (board.read) |
-| `nworks_board_create` | Create board post | User OAuth (board) |
+| `nworks_board_create` | Create board post (optional file attachments via `filePaths`) | User OAuth (board) |
 | **Contacts** | | |
 | `nworks_contact_list` | List contacts | User OAuth (contact.read) |
 | `nworks_contact_get` | Get contact detail | User OAuth (contact.read) |
@@ -431,6 +431,7 @@ NWORKS_BOT_ID=
 NWORKS_DOMAIN_ID=
 NWORKS_SCOPE=              # default: bot bot.read user.read
 NWORKS_VERBOSE=1           # debug logging
+NWORKS_UPLOAD_BASE=        # restrict board attachment paths (path-delimiter separated dirs)
 ```
 
 ### MCP Server with Environment Variables

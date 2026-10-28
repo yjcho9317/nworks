@@ -148,7 +148,7 @@ nworks login --user --scope "calendar calendar.read file file.read mail mail.rea
 | `nworks_board_list` | 掲示板一覧 | User OAuth (board.read) |
 | `nworks_board_posts` | 掲示板の投稿一覧 | User OAuth (board.read) |
 | `nworks_board_read` | 掲示板の投稿詳細 | User OAuth (board.read) |
-| `nworks_board_create` | 掲示板に投稿作成 | User OAuth (board) |
+| `nworks_board_create` | 掲示板に投稿作成 (`filePaths` でファイル添付可) | User OAuth (board) |
 | **連絡先** | | |
 | `nworks_contact_list` | 連絡先一覧 | User OAuth (contact.read) |
 | `nworks_contact_get` | 連絡先の詳細 | User OAuth (contact.read) |
@@ -431,6 +431,7 @@ NWORKS_BOT_ID=
 NWORKS_DOMAIN_ID=
 NWORKS_SCOPE=              # デフォルト: bot bot.read user.read
 NWORKS_VERBOSE=1           # デバッグログ
+NWORKS_UPLOAD_BASE=        # 掲示板添付を許可するパスの制限 (パス区切り文字で複数ディレクトリ)
 ```
 
 ### MCPサーバーに環境変数を直接設定

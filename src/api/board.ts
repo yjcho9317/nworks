@@ -1,7 +1,38 @@
+import { readFile, stat } from "node:fs/promises";
+import { basename, extname } from "node:path";
+import { ApiError } from "../utils/error.js";
 import { userFetch, handleUserApiError } from "./user-client.js";
-import { sanitizePathSegment } from "../utils/sanitize.js";
+import { sanitizePathSegment, sanitizeFileName, validateRedirectUrl } from "../utils/sanitize.js";
 
 const BASE_URL = "https://www.worksapis.com/v1.0";
+
+const MAX_ATTACHMENT_SIZE = 100 * 1024 * 1024; // 100MB (drive 업로드와 동일)
+
+// 첨부 uploadUrl은 storage 호스트를 가리킨다. drive 업로드와 같은 허용 목록.
+const ALLOWED_UPLOAD_HOSTS = [
+  "storage.worksmobile.com",
+  "apis-storage.worksmobile.com",
+  "www.worksapis.com",
+  "worksapis.com",
+];
+
+// 첨부 추가 API는 contentType이 필수다. 모르는 확장자는 octet-stream.
+const CONTENT_TYPES: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".heic": "image/heic",
+  ".pdf": "application/pdf",
+  ".mp4": "video/mp4",
+  ".mov": "video/quicktime",
+  ".txt": "text/plain",
+  ".zip": "application/zip",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
 
 export interface Board {
   boardId: string;
@@ -28,6 +59,12 @@ export interface Post {
   updatedTime?: string;
   commentCount?: number;
   enableComment?: boolean;
+}
+
+export interface AttachmentResult {
+  fileName: string;
+  fileSize: number;
+  contentType: string;
 }
 
 export interface PostListResult {
@@ -165,4 +202,71 @@ export async function createPost(opts: CreatePostOptions): Promise<Post> {
     return safeParseJson<Post>(text);
   }
   return handleUserApiError(res);
+}
+
+/** 게시글에 첨부파일을 추가한다: 업로드 URL 발급 → multipart 업로드 */
+export async function addPostAttachment(
+  boardId: string,
+  postId: string,
+  localPath: string,
+  profile = "default"
+): Promise<AttachmentResult> {
+  const fileName = basename(localPath);
+  const safeName = sanitizeFileName(fileName);
+  const fileSize = (await stat(localPath)).size;
+
+  if (fileSize > MAX_ATTACHMENT_SIZE) {
+    throw new ApiError("FILE_TOO_LARGE", `File size (${fileSize} bytes) exceeds maximum allowed (${MAX_ATTACHMENT_SIZE} bytes)`, 413);
+  }
+
+  const contentType = CONTENT_TYPES[extname(fileName).toLowerCase()] ?? "application/octet-stream";
+  const createUrl = `${BASE_URL}/boards/${sanitizePathSegment(boardId)}/posts/${sanitizePathSegment(postId)}/attachments`;
+
+  if (process.env["NWORKS_VERBOSE"] === "1") {
+    console.error(`[nworks] POST ${createUrl} (create attachment upload URL)`);
+  }
+
+  const createRes = await userFetch(
+    createUrl,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName, fileSize, contentType }),
+    },
+    profile
+  );
+
+  if (!createRes.ok) return handleUserApiError(createRes);
+
+  const { uploadUrl } = (await createRes.json()) as { uploadUrl: string };
+  validateRedirectUrl(uploadUrl, ALLOWED_UPLOAD_HOSTS);
+  const fileBuffer = await readFile(localPath);
+  const boundary = `----nworks${Date.now()}`;
+
+  const header = Buffer.from(
+    `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="Filedata"; filename="${safeName}"\r\n` +
+      `Content-Type: ${contentType}\r\n\r\n`
+  );
+  const footer = Buffer.from(`\r\n--${boundary}--\r\n`);
+  const body = Buffer.concat([header, fileBuffer, footer]);
+
+  if (process.env["NWORKS_VERBOSE"] === "1") {
+    console.error(`[nworks] POST ${uploadUrl} (upload attachment, ${fileSize} bytes)`);
+  }
+
+  const uploadRes = await userFetch(
+    uploadUrl,
+    {
+      method: "POST",
+      headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
+      body,
+    },
+    profile
+  );
+
+  if (!uploadRes.ok) return handleUserApiError(uploadRes);
+  await uploadRes.text();
+
+  return { fileName, fileSize, contentType };
 }
